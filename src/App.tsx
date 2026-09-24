@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircleIcon, BracesIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, Download06Icon, FileCodeIcon, HammerIcon, LayoutAlignLeftIcon, TriangleAlertIcon } from "@hugeicons/core-free-icons";
+import { AlertCircleIcon, BracesIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, FileCodeIcon, LayoutAlignLeftIcon, TriangleAlertIcon } from "@hugeicons/core-free-icons";
 import type { CompileResult, CompileStatus, Diagnostic, WorkspaceEntry, WorkspaceInfo } from "../shared/types";
 import { api } from "./api";
 import { Editor } from "./Editor";
@@ -8,7 +8,6 @@ import { PdfPreview } from "./PdfPreview";
 import { Alert, AlertAction, AlertDescription } from "./components/ui/alert";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
-import { Kbd } from "./components/ui/kbd";
 import { IconButton } from "./components/IconButton";
 import { AppIcon } from "./components/AppIcon";
 
@@ -28,6 +27,10 @@ function parentPath(value: string) {
 }
 
 export function App() {
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    const saved = window.localStorage.getItem("restex-theme");
+    return saved === "light" || saved === "dark" ? saved : "dark";
+  });
   const [workspace, setWorkspace] = useState<WorkspaceInfo>();
   const [activeFile, setActiveFile] = useState<string>();
   const [selected, setSelected] = useState<{ path: string; kind: "file" | "directory" }>();
@@ -103,6 +106,11 @@ export function App() {
   }, [compile]);
 
   useEffect(() => { void loadWorkspace(true); }, [loadWorkspace]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    window.localStorage.setItem("restex-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     const events = new EventSource("/api/events");
@@ -200,14 +208,10 @@ export function App() {
   const hasUnsaved = source !== savedSource;
 
   return (
-    <main className="app-shell dark">
+    <main className={`app-shell ${theme}`}>
       <header className="topbar">
         <div className="brand"><div className="brand-mark"><AppIcon icon={BracesIcon} size={17} /></div><span>RES<b>TEX</b></span></div>
         <div className="workspace-path">{workspace?.path ?? "Opening workspace…"}</div>
-        <div className="top-actions" aria-label="Document actions">
-          <Button className="build-action" variant="outline" size="sm" onClick={() => void compile(true)} disabled={!activeFile || status === "unavailable"}><AppIcon icon={HammerIcon} /> Build <Kbd>⌘↵</Kbd></Button>
-          <Button className="download-action" variant="secondary" size="sm" onClick={() => void downloadPdf()} disabled={!activeFile || status === "unavailable"}><AppIcon icon={Download06Icon} /> Download PDF</Button>
-        </div>
       </header>
 
       {!workspace?.tectonicAvailable && workspace ? <Alert variant="info" className="setup-banner"><AppIcon icon={TriangleAlertIcon} /><AlertDescription><strong>Tectonic is not installed.</strong> The editor works, but preview requires <code>brew install tectonic</code>.</AlertDescription></Alert> : null}
@@ -232,7 +236,7 @@ export function App() {
           )}
         </section>
         <div className="resize-handle" onMouseDown={beginResize} role="separator" aria-label="Resize editor and preview"><AppIcon icon={ChevronLeftIcon} size={10} /><AppIcon icon={ChevronRightIcon} size={10} /></div>
-        <PdfPreview pdfUrl={result?.success ? result.pdfUrl : undefined} pageCount={result?.pageCount} compiling={status === "compiling" || status === "saving"} error={status === "error" ? "Fix the errors below to update the preview." : undefined} />
+        <PdfPreview pdfUrl={result?.success ? result.pdfUrl : undefined} pageCount={result?.pageCount} compiling={status === "compiling" || status === "saving"} error={status === "error" ? "Fix the errors below to update the preview." : undefined} actionsDisabled={!activeFile || status === "unavailable"} onBuild={() => void compile(true)} onDownload={() => void downloadPdf()} theme={theme} onToggleTheme={() => setTheme((value) => value === "dark" ? "light" : "dark")} />
       </div>
 
       {diagnostics.length > 0 ? <section className="diagnostics"><div className="diagnostics-title"><AppIcon icon={AlertCircleIcon} size={14} /> PROBLEMS <Badge variant={diagnostics.some((item) => item.severity === "error") ? "error" : "warning"}>{diagnostics.length}</Badge></div>{diagnostics.slice(0, 4).map((item, index) => <div className={`diagnostic ${item.severity}`} key={`${item.message}-${index}`}><span>{item.severity === "error" ? "×" : "!"}</span><p>{item.message}</p><small>{item.file}{item.line ? `:${item.line}` : ""}</small></div>)}</section> : null}

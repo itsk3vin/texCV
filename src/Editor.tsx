@@ -16,15 +16,15 @@ type Props = {
 };
 
 const theme = EditorView.theme({
-  "&": { height: "100%", backgroundColor: "#0f1217", color: "#d8dce3", fontSize: "14px" },
+  "&": { height: "100%", backgroundColor: "var(--editor-bg)", color: "var(--editor-fg)", fontSize: "14px" },
   ".cm-scroller": { fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace', lineHeight: "1.65", overflow: "auto" },
-  ".cm-content": { padding: "18px 0", caretColor: "#9bafbf" },
+  ".cm-content": { padding: "18px 0", caretColor: "var(--editor-accent)" },
   ".cm-line": { padding: "0 20px" },
-  ".cm-gutters": { backgroundColor: "#0f1217", color: "#4f5662", border: "none", paddingLeft: "6px" },
-  ".cm-activeLine": { backgroundColor: "#171b22" },
-  ".cm-activeLineGutter": { backgroundColor: "#171b22", color: "#8d96a3" },
-  "&.cm-focused .cm-selectionBackground, ::selection": { backgroundColor: "#314c61 !important" },
-  ".cm-cursor": { borderLeftColor: "#9bafbf", borderLeftWidth: "2px" },
+  ".cm-gutters": { backgroundColor: "var(--editor-bg)", color: "var(--editor-gutter)", border: "none", paddingLeft: "6px" },
+  ".cm-activeLine": { backgroundColor: "var(--editor-line)" },
+  ".cm-activeLineGutter": { backgroundColor: "var(--editor-line)", color: "var(--editor-gutter-active)" },
+  "&.cm-focused .cm-selectionBackground, ::selection": { backgroundColor: "var(--editor-selection) !important" },
+  ".cm-cursor": { borderLeftColor: "var(--editor-accent)", borderLeftWidth: "2px" },
 });
 
 export function Editor({ value, filePath, onChange, onSave, onCompile, onCursor }: Props) {
