@@ -1,0 +1,55 @@
+{
+  "name": "restex",
+  "version": "0.1.0",
+  "description": "A local-only LaTeX resume editor with a live PDF preview",
+  "type": "module",
+  "bin": {
+    "tex-editor": "dist-server/cli.js"
+  },
+  "files": [
+    "dist",
+    "dist-server"
+  ],
+  "scripts": {
+    "dev": "tsx server/cli.ts --dev --no-open",
+    "build": "tsc -p tsconfig.json && vite build && tsc -p tsconfig.server.json && node scripts/add-shebang.mjs",
+    "start": "node dist-server/cli.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.10.0",
+    "@codemirror/language": "^6.11.3",
+    "@codemirror/legacy-modes": "^6.5.2",
+    "@codemirror/search": "^6.5.11",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.38.6",
+    "chokidar": "^4.0.3",
+    "express": "^5.1.0",
+    "lucide-react": "^0.468.0",
+    "open": "^10.1.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.3.289",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.2",
+    "jsdom": "^26.1.0",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.4",
+    "vitest": "^3.2.4"
+  }
+}

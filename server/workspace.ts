@@ -1,0 +1,101 @@
+import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import path from "node:path";
+import type { WorkspaceEntry } from "../shared/types.js";
+import { resolveExistingPath, resolveNewPath, WorkspacePathError } from "./path-security.js";
+
+const HIDDEN = new Set([".git", "node_modules", "dist", "dist-server", ".DS_Store"]);
+const EDITABLE = new Set([".tex"]);
+
+export async function readTree(root: string): Promise<WorkspaceEntry[]> {
+  async function walk(folder: string, prefix = ""): Promise<WorkspaceEntry[]> {
+    const dirents = await readdir(folder, { withFileTypes: true });
+    const entries: WorkspaceEntry[] = [];
+    for (const dirent of dirents) {
+      if (HIDDEN.has(dirent.name)) continue;
+      const relative = path.posix.join(prefix, dirent.name);
+      const absolute = path.join(folder, dirent.name);
+      if (dirent.isSymbolicLink()) continue;
+      if (dirent.isDirectory()) {
+        entries.push({ name: dirent.name, path: relative, kind: "directory", editable: false, children: await walk(absolute, relative) });
+      } else if (dirent.isFile()) {
+        entries.push({ name: dirent.name, path: relative, kind: "file", editable: EDITABLE.has(path.extname(dirent.name).toLowerCase()) });
+      }
+    }
+    return entries.sort((a, b) => a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "directory" ? -1 : 1);
+  }
+  return walk(root);
+}
+
+export async function readWorkspaceFile(root: string, relativePath: string): Promise<string> {
+  const absolute = await resolveExistingPath(root, relativePath);
+  if (!(await stat(absolute)).isFile()) throw new WorkspacePathError("Only files can be opened.");
+  if (!EDITABLE.has(path.extname(absolute).toLowerCase())) throw new WorkspacePathError("Only .tex files can be edited.");
+  return readFile(absolute, "utf8");
+}
+
+export async function writeWorkspaceFile(root: string, relativePath: string, content: unknown): Promise<void> {
+  if (typeof content !== "string") throw new WorkspacePathError("File content must be text.");
+  const absolute = await resolveExistingPath(root, relativePath);
+  if (!EDITABLE.has(path.extname(absolute).toLowerCase())) throw new WorkspacePathError("Only .tex files can be edited.");
+  await writeFile(absolute, content, "utf8");
+}
+
+export async function createWorkspaceEntry(root: string, relativePath: string, kind: unknown): Promise<void> {
+  if (kind !== "file" && kind !== "directory") throw new WorkspacePathError("Entry kind must be file or directory.");
+  const absolute = await resolveNewPath(root, relativePath);
+  try {
+    await stat(absolute);
+    throw new WorkspacePathError("A file or folder with that name already exists.");
+  } catch (error) {
+    if (error instanceof WorkspacePathError) throw error;
+  }
+  if (kind === "directory") await mkdir(absolute);
+  else await writeFile(absolute, "", { encoding: "utf8", flag: "wx" });
+}
+
+export async function renameWorkspaceEntry(root: string, from: string, to: string): Promise<void> {
+  const source = await resolveExistingPath(root, from);
+  const destination = await resolveNewPath(root, to);
+  try {
+    await stat(destination);
+    throw new WorkspacePathError("A file or folder with that name already exists.");
+  } catch (error) {
+    if (error instanceof WorkspacePathError) throw error;
+  }
+  await rename(source, destination);
+}
+
+export async function deleteWorkspaceEntry(root: string, relativePath: string): Promise<void> {
+  if (!relativePath) throw new WorkspacePathError("The workspace root cannot be deleted.");
+  const absolute = await resolveExistingPath(root, relativePath);
+  await rm(absolute, { recursive: true });
+}
+
+export const STARTER = String.raw`\documentclass[10pt,letterpaper]{article}
+\usepackage[margin=0.65in]{geometry}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\setlist[itemize]{leftmargin=*,nosep}
+\pagestyle{empty}
+
+\begin{document}
+\begin{center}
+  {\LARGE \textbf{Your Name}}\\[4pt]
+  \href{mailto:you@example.com}{you@example.com} \quad
+  (555) 555-5555 \quad City, State
+\end{center}
+
+\section*{Experience}
+\textbf{Role} \hfill Company \hfill 2024--Present
+\begin{itemize}
+  \item Describe a measurable result and the work that produced it.
+  \item Keep each bullet concise, specific, and outcome-oriented.
+\end{itemize}
+
+\section*{Education}
+\textbf{Degree} \hfill University \hfill 2024
+
+\section*{Skills}
+LaTeX, writing, and the tools relevant to your work.
+\end{document}
+`;
