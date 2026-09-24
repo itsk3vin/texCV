@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, FileCode2, FileImage, FilePlus2, Folder, FolderPlus, Pencil, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, FileAddIcon, FileCodeIcon, FileImageIcon, FolderAddIcon, FolderIcon, PencilIcon, RefreshCwIcon, TrashIcon } from "@hugeicons/core-free-icons";
 import type { WorkspaceEntry } from "../shared/types";
+import { Button } from "./components/ui/button";
+import { IconButton } from "./components/IconButton";
+import { AppIcon } from "./components/AppIcon";
 
 type Props = {
   entries: WorkspaceEntry[];
@@ -16,23 +19,23 @@ type Props = {
 };
 
 function FileIcon({ name }: { name: string }) {
-  return /\.(png|jpe?g|svg|pdf)$/i.test(name) ? <FileImage size={15} /> : <FileCode2 size={15} />;
+  return /\.(png|jpe?g|svg|pdf)$/i.test(name) ? <AppIcon icon={FileImageIcon} size={15} /> : <AppIcon icon={FileCodeIcon} size={15} />;
 }
 
 function TreeItem({ entry, active, selected, onOpen, onSelect, depth = 0 }: { entry: WorkspaceEntry; active?: string; selected?: string; onOpen: (entry: WorkspaceEntry) => void; onSelect: (entry: WorkspaceEntry) => void; depth?: number }) {
   const [open, setOpen] = useState(true);
   if (entry.kind === "directory") return (
     <div>
-      <button className={`tree-row ${selected === entry.path ? "selected" : ""}`} style={{ paddingLeft: 12 + depth * 14 }} onClick={() => { onSelect(entry); setOpen((value) => !value); }}>
-        {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}<Folder size={15} /><span>{entry.name}</span>
-      </button>
+      <Button variant="ghost" size="sm" className={`tree-row ${selected === entry.path ? "selected" : ""}`} style={{ paddingLeft: 12 + depth * 14 }} onClick={() => { onSelect(entry); setOpen((value) => !value); }}>
+        {open ? <AppIcon icon={ChevronDownIcon} size={13} /> : <AppIcon icon={ChevronRightIcon} size={13} />}<AppIcon icon={FolderIcon} size={15} /><span>{entry.name}</span>
+      </Button>
       {open ? entry.children?.map((child) => <TreeItem key={child.path} entry={child} active={active} selected={selected} onOpen={onOpen} onSelect={onSelect} depth={depth + 1} />) : null}
     </div>
   );
   return (
-    <button className={`tree-row ${active === entry.path ? "active" : selected === entry.path ? "selected" : ""}`} style={{ paddingLeft: 28 + depth * 14 }} onClick={() => { onSelect(entry); onOpen(entry); }} title={entry.editable ? entry.path : `${entry.path} (supporting file)`}>
+    <Button variant="ghost" size="sm" className={`tree-row ${active === entry.path ? "active" : selected === entry.path ? "selected" : ""}`} style={{ paddingLeft: 28 + depth * 14 }} onClick={() => { onSelect(entry); onOpen(entry); }} title={entry.editable ? entry.path : `${entry.path} (supporting file)`}>
       <FileIcon name={entry.name} /><span>{entry.name}</span>{entry.editable ? null : <span className="readonly-dot" />}
-    </button>
+    </Button>
   );
 }
 
@@ -42,11 +45,11 @@ export function FileExplorer(props: Props) {
       <div className="pane-header explorer-header">
         <span>{props.workspaceName.toUpperCase()}</span>
         <div className="explorer-actions">
-          <button onClick={() => props.onCreate("file")} className="icon-button" aria-label="New file" title="New file"><FilePlus2 size={15} /></button>
-          <button onClick={() => props.onCreate("directory")} className="icon-button" aria-label="New folder" title="New folder"><FolderPlus size={15} /></button>
-          <button onClick={props.onRename} className="icon-button" aria-label="Rename selected" title="Rename selected" disabled={!props.selected}><Pencil size={14} /></button>
-          <button onClick={props.onDelete} className="icon-button danger" aria-label="Delete selected" title="Delete selected" disabled={!props.selected}><Trash2 size={14} /></button>
-          <button onClick={props.onRefresh} className="icon-button" aria-label="Refresh files" title="Refresh"><RefreshCw size={14} /></button>
+          <IconButton onClick={() => props.onCreate("file")} label="New file"><AppIcon icon={FileAddIcon} /></IconButton>
+          <IconButton onClick={() => props.onCreate("directory")} label="New folder"><AppIcon icon={FolderAddIcon} /></IconButton>
+          <IconButton onClick={props.onRename} label="Rename selected" disabled={!props.selected}><AppIcon icon={PencilIcon} /></IconButton>
+          <IconButton onClick={props.onDelete} label="Delete selected" variant="destructive-outline" disabled={!props.selected}><AppIcon icon={TrashIcon} /></IconButton>
+          <IconButton onClick={props.onRefresh} label="Refresh files"><AppIcon icon={RefreshCwIcon} /></IconButton>
         </div>
       </div>
       <nav className="tree" tabIndex={-1} id="file-explorer">

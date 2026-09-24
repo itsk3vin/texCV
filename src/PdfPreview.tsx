@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { FileWarning, LoaderCircle, ZoomIn, ZoomOut } from "lucide-react";
+import { TriangleAlertIcon, ZoomInIcon, ZoomOutIcon } from "@hugeicons/core-free-icons";
 import { GlobalWorkerOptions, getDocument } from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { IconButton } from "./components/IconButton";
+import { Badge } from "./components/ui/badge";
+import { Group, GroupSeparator } from "./components/ui/group";
+import { Spinner } from "./components/ui/spinner";
+import { AppIcon } from "./components/AppIcon";
 
 GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -41,13 +46,15 @@ export function PdfPreview({ pdfUrl, compiling, error, pageCount }: Props) {
     <section className="preview-pane" aria-label="PDF preview">
       <div className="pane-header">
         <span>PREVIEW</span>
-        <div className="preview-tools">
-          <button className="icon-button" onClick={() => setZoom((v) => Math.max(.6, v - .1))} aria-label="Zoom out"><ZoomOut size={15} /></button>
+        <Group className="preview-tools" aria-label="Preview zoom">
+          <IconButton onClick={() => setZoom((v) => Math.max(.6, v - .1))} label="Zoom out"><AppIcon icon={ZoomOutIcon} /></IconButton>
+          <GroupSeparator />
           <span>{Math.round(zoom * 100)}%</span>
-          <button className="icon-button" onClick={() => setZoom((v) => Math.min(1.8, v + .1))} aria-label="Zoom in"><ZoomIn size={15} /></button>
-        </div>
+          <GroupSeparator />
+          <IconButton onClick={() => setZoom((v) => Math.min(1.8, v + .1))} label="Zoom in"><AppIcon icon={ZoomInIcon} /></IconButton>
+        </Group>
       </div>
-      {pageCount && pageCount > 1 ? <div className="page-warning"><FileWarning size={16} /> {pageCount} pages — showing page 1</div> : null}
+      {pageCount && pageCount > 1 ? <div className="page-warning"><AppIcon icon={TriangleAlertIcon} /><Badge variant="warning">{pageCount} pages</Badge> showing page 1</div> : null}
       <div className="paper-stage" ref={container}>
         {pdfUrl ? <canvas ref={canvas} className="pdf-canvas" /> : (
           <div className="preview-empty">
@@ -55,7 +62,7 @@ export function PdfPreview({ pdfUrl, compiling, error, pageCount }: Props) {
             <p>{error || "Your compiled resume will appear here."}</p>
           </div>
         )}
-        {compiling ? <div className="compiling-pill"><LoaderCircle size={14} className="spin" /> Building preview</div> : null}
+        {compiling ? <div className="compiling-pill"><Spinner /> Building preview</div> : null}
       </div>
       {renderError ? <div className="preview-error">{renderError}</div> : null}
     </section>

@@ -1,10 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Braces, Check, ChevronLeft, ChevronRight, CircleAlert, FileCode2, PanelLeftClose, PanelLeftOpen, Play, Save } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AlertCircleIcon, BracesIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, Download06Icon, FileCodeIcon, HammerIcon, LayoutAlignLeftIcon, TriangleAlertIcon } from "@hugeicons/core-free-icons";
 import type { CompileResult, CompileStatus, Diagnostic, WorkspaceEntry, WorkspaceInfo } from "../shared/types";
 import { api } from "./api";
 import { Editor } from "./Editor";
 import { FileExplorer } from "./FileExplorer";
 import { PdfPreview } from "./PdfPreview";
+import { Alert, AlertAction, AlertDescription } from "./components/ui/alert";
+import { Badge } from "./components/ui/badge";
+import { Button } from "./components/ui/button";
+import { Kbd } from "./components/ui/kbd";
+import { IconButton } from "./components/IconButton";
+import { AppIcon } from "./components/AppIcon";
 
 function firstTex(entries: WorkspaceEntry[]): string | undefined {
   const files = entries.flatMap((entry): WorkspaceEntry[] => entry.kind === "directory" ? flatten(entry.children ?? []) : [entry]);
@@ -78,11 +84,23 @@ export function App() {
       const next = await api.compile(file);
       if (sequence !== compileSequence.current) return;
       setResult(next); setDiagnostics(next.diagnostics); setStatus(next.success ? "success" : "error");
+      return next;
     } catch (error) {
       if (sequence !== compileSequence.current) return;
       saving.current = false; setStatus("error"); setNotice(error instanceof Error ? error.message : "Compile failed.");
     }
   }, []);
+
+  const downloadPdf = useCallback(async () => {
+    const compiled = await compile(true);
+    if (!compiled?.success || !compiled.pdfUrl) return;
+    const link = document.createElement("a");
+    link.href = compiled.pdfUrl;
+    link.download = `${activeRef.current?.split("/").pop()?.replace(/\.tex$/i, "") || "resume"}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }, [compile]);
 
   useEffect(() => { void loadWorkspace(true); }, [loadWorkspace]);
 
@@ -182,18 +200,18 @@ export function App() {
   const hasUnsaved = source !== savedSource;
 
   return (
-    <main className="app-shell">
+    <main className="app-shell dark">
       <header className="topbar">
-        <div className="brand"><div className="brand-mark"><Braces size={17} /></div><span>RES<b>TEX</b></span></div>
+        <div className="brand"><div className="brand-mark"><AppIcon icon={BracesIcon} size={17} /></div><span>RES<b>TEX</b></span></div>
         <div className="workspace-path">{workspace?.path ?? "Opening workspace…"}</div>
-        <div className="top-actions">
-          <button className="toolbar-button" onClick={() => void compile(true)} disabled={!activeFile || status === "unavailable"}><Play size={14} fill="currentColor" /> Build <kbd>⌘↵</kbd></button>
-          <button className="toolbar-button primary" onClick={() => void compile(true)} disabled={!activeFile}><Save size={14} /> Save <kbd>⌘S</kbd></button>
+        <div className="top-actions" aria-label="Document actions">
+          <Button className="build-action" variant="outline" size="sm" onClick={() => void compile(true)} disabled={!activeFile || status === "unavailable"}><AppIcon icon={HammerIcon} /> Build <Kbd>⌘↵</Kbd></Button>
+          <Button className="download-action" variant="secondary" size="sm" onClick={() => void downloadPdf()} disabled={!activeFile || status === "unavailable"}><AppIcon icon={Download06Icon} /> Download PDF</Button>
         </div>
       </header>
 
-      {!workspace?.tectonicAvailable && workspace ? <div className="setup-banner"><AlertTriangle size={17} /><span><strong>Tectonic is not installed.</strong> The editor works, but preview requires <code>brew install tectonic</code>.</span></div> : null}
-      {notice ? <div className="notice"><CircleAlert size={15} />{notice}<button onClick={() => setNotice(undefined)}>Dismiss</button></div> : null}
+      {!workspace?.tectonicAvailable && workspace ? <Alert variant="info" className="setup-banner"><AppIcon icon={TriangleAlertIcon} /><AlertDescription><strong>Tectonic is not installed.</strong> The editor works, but preview requires <code>brew install tectonic</code>.</AlertDescription></Alert> : null}
+      {notice ? <Alert variant="error" className="notice"><AppIcon icon={AlertCircleIcon} /><AlertDescription>{notice}</AlertDescription><AlertAction><Button variant="ghost" size="xs" onClick={() => setNotice(undefined)}>Dismiss</Button></AlertAction></Alert> : null}
 
       <div className="workspace-grid" style={{ gridTemplateColumns: explorerOpen ? `240px minmax(320px, ${editorWidth}fr) 5px minmax(360px, ${100 - editorWidth}fr)` : `0 minmax(320px, ${editorWidth}fr) 5px minmax(360px, ${100 - editorWidth}fr)` }}>
         <div className={explorerOpen ? "explorer-wrap" : "explorer-wrap closed"}>
@@ -201,26 +219,26 @@ export function App() {
         </div>
         <section className="editor-pane">
           <div className="pane-header file-tab">
-            <button className="icon-button explorer-toggle" onClick={() => setExplorerOpen((value) => !value)} aria-label="Toggle explorer">{explorerOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}</button>
-            {activeFile ? <><FileCode2 size={14} /><span>{activeFile}</span>{hasUnsaved ? <i className="unsaved" aria-label="Unsaved" /> : null}</> : <span>EDITOR</span>}
+            <IconButton className="explorer-toggle" onClick={() => setExplorerOpen((value) => !value)} label="Toggle explorer"><AppIcon icon={LayoutAlignLeftIcon} /></IconButton>
+            {activeFile ? <><AppIcon icon={FileCodeIcon} size={14} /><span>{activeFile}</span>{hasUnsaved ? <i className="unsaved" aria-label="Unsaved" /> : null}</> : <span>EDITOR</span>}
           </div>
           {activeFile ? <Editor value={source} filePath={activeFile} onChange={setSource} onSave={() => void compile(true)} onCompile={() => void compile(true)} onCursor={(line, column) => setCursor({ line, column })} /> : (
             <div className="editor-empty">
-              <div className="empty-icon"><Braces size={26} /></div>
+              <div className="empty-icon"><AppIcon icon={BracesIcon} size={26} /></div>
               <h1>{workspace?.isEmpty ? "Start your resume" : "Choose a LaTeX file"}</h1>
               <p>{workspace?.isEmpty ? "Create a clean US Letter starting point, then make it yours." : "Open a .tex file from the explorer to begin editing."}</p>
-              {workspace?.isEmpty ? <button className="create-starter" onClick={() => void createStarter()}>Create resume.tex</button> : null}
+              {workspace?.isEmpty ? <Button className="create-starter" variant="outline" onClick={() => void createStarter()}>Create resume.tex</Button> : null}
             </div>
           )}
         </section>
-        <div className="resize-handle" onMouseDown={beginResize} role="separator" aria-label="Resize editor and preview"><ChevronLeft size={10} /><ChevronRight size={10} /></div>
+        <div className="resize-handle" onMouseDown={beginResize} role="separator" aria-label="Resize editor and preview"><AppIcon icon={ChevronLeftIcon} size={10} /><AppIcon icon={ChevronRightIcon} size={10} /></div>
         <PdfPreview pdfUrl={result?.success ? result.pdfUrl : undefined} pageCount={result?.pageCount} compiling={status === "compiling" || status === "saving"} error={status === "error" ? "Fix the errors below to update the preview." : undefined} />
       </div>
 
-      {diagnostics.length > 0 ? <section className="diagnostics"><div className="diagnostics-title"><CircleAlert size={14} /> PROBLEMS <span>{diagnostics.length}</span></div>{diagnostics.slice(0, 4).map((item, index) => <div className={`diagnostic ${item.severity}`} key={`${item.message}-${index}`}><span>{item.severity === "error" ? "×" : "!"}</span><p>{item.message}</p><small>{item.file}{item.line ? `:${item.line}` : ""}</small></div>)}</section> : null}
+      {diagnostics.length > 0 ? <section className="diagnostics"><div className="diagnostics-title"><AppIcon icon={AlertCircleIcon} size={14} /> PROBLEMS <Badge variant={diagnostics.some((item) => item.severity === "error") ? "error" : "warning"}>{diagnostics.length}</Badge></div>{diagnostics.slice(0, 4).map((item, index) => <div className={`diagnostic ${item.severity}`} key={`${item.message}-${index}`}><span>{item.severity === "error" ? "×" : "!"}</span><p>{item.message}</p><small>{item.file}{item.line ? `:${item.line}` : ""}</small></div>)}</section> : null}
       <footer className="statusbar">
         <div><span className={`status-indicator ${status}`} />{statusLabel}{hasUnsaved ? " • unsaved" : ""}</div>
-        <div className="status-meta"><span>US LETTER</span><span>PAGE {result?.pageCount ? `1 / ${result.pageCount}` : "—"}</span><span>Ln {cursor.line}, Col {cursor.column}</span><span>LaTeX</span>{status === "success" ? <Check size={13} /> : null}</div>
+        <div className="status-meta"><span>US LETTER</span><span>PAGE {result?.pageCount ? `1 / ${result.pageCount}` : "—"}</span><span>Ln {cursor.line}, Col {cursor.column}</span><span>LaTeX</span>{status === "success" ? <AppIcon icon={CheckIcon} size={13} /> : null}</div>
       </footer>
     </main>
   );
