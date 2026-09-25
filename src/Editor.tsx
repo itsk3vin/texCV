@@ -69,5 +69,5 @@ export function Editor({ value, filePath, onChange, onSave, onCompile, onCursor 
     editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value } });
   }, [value]);
 
-  return <div className="editor-host" ref={host} aria-label={filePath ? `Editing ${filePath}` : "No file open"} />;
+  return <div className="editor-host" ref={host} aria-label={filePath ? `Editing ${filePath.replace(/\.tex$/i, "")}` : "No file open"} />;
 }

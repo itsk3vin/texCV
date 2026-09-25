@@ -1,20 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { Download06Icon, HammerIcon, Moon02Icon, Sun03Icon, TriangleAlertIcon, ZoomInIcon, ZoomOutIcon } from "@hugeicons/core-free-icons";
+import { Download06Icon, TriangleAlertIcon, ZoomInIcon, ZoomOutIcon } from "@hugeicons/core-free-icons";
 import { GlobalWorkerOptions, getDocument } from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { IconButton } from "./components/IconButton";
 import { Badge } from "./components/ui/badge";
-import { Group, GroupSeparator } from "./components/ui/group";
 import { Spinner } from "./components/ui/spinner";
 import { AppIcon } from "./components/AppIcon";
 import { Button } from "./components/ui/button";
-import { Kbd } from "./components/ui/kbd";
 
 GlobalWorkerOptions.workerSrc = pdfWorker;
 
-type Props = { pdfUrl?: string; compiling: boolean; error?: string; pageCount?: number; actionsDisabled: boolean; onBuild: () => void; onDownload: () => void; theme: "dark" | "light"; onToggleTheme: () => void };
+type Props = { pdfUrl?: string; compiling: boolean; error?: string; pageCount?: number; actionsDisabled: boolean; onBuild: () => void; onDownload: () => void };
 
-export function PdfPreview({ pdfUrl, compiling, error, pageCount, actionsDisabled, onBuild, onDownload, theme, onToggleTheme }: Props) {
+export function PdfPreview({ pdfUrl, compiling, error, pageCount, actionsDisabled, onBuild, onDownload }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -47,19 +45,15 @@ export function PdfPreview({ pdfUrl, compiling, error, pageCount, actionsDisable
   return (
     <section className="preview-pane" aria-label="PDF preview">
       <div className="pane-header">
+        <div className="preview-tools" aria-label="Preview zoom">
+          <IconButton onClick={() => setZoom((v) => Math.max(.6, v - .1))} label="Zoom out"><AppIcon icon={ZoomOutIcon} /></IconButton>
+          <span className="zoom-value">{Math.round(zoom * 100)}%</span>
+          <IconButton onClick={() => setZoom((v) => Math.min(1.8, v + .1))} label="Zoom in"><AppIcon icon={ZoomInIcon} /></IconButton>
+        </div>
         <div className="preview-actions" aria-label="Document actions">
-          <Button className="build-action" variant="outline" size="sm" onClick={onBuild} disabled={actionsDisabled}><AppIcon icon={HammerIcon} /> Build <Kbd>⌘↵</Kbd></Button>
+          <Button className="build-action" variant="outline" size="sm" onClick={onBuild} disabled={actionsDisabled}>Compile</Button>
           <Button className="download-action" size="sm" onClick={onDownload} disabled={actionsDisabled}><AppIcon icon={Download06Icon} /> Download PDF</Button>
         </div>
-        <Group className="preview-tools" aria-label="Preview zoom">
-          <IconButton className="theme-toggle" onClick={onToggleTheme} label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}><AppIcon icon={theme === "dark" ? Sun03Icon : Moon02Icon} /></IconButton>
-          <GroupSeparator />
-          <IconButton onClick={() => setZoom((v) => Math.max(.6, v - .1))} label="Zoom out"><AppIcon icon={ZoomOutIcon} /></IconButton>
-          <GroupSeparator />
-          <span>{Math.round(zoom * 100)}%</span>
-          <GroupSeparator />
-          <IconButton onClick={() => setZoom((v) => Math.min(1.8, v + .1))} label="Zoom in"><AppIcon icon={ZoomInIcon} /></IconButton>
-        </Group>
       </div>
       {pageCount && pageCount > 1 ? <div className="page-warning"><AppIcon icon={TriangleAlertIcon} /><Badge variant="warning">{pageCount} pages</Badge> showing page 1</div> : null}
       <div className="paper-stage" ref={container}>

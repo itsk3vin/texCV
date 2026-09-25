@@ -22,6 +22,10 @@ function FileIcon({ name }: { name: string }) {
   return /\.(png|jpe?g|svg|pdf)$/i.test(name) ? <AppIcon icon={FileImageIcon} size={15} /> : <AppIcon icon={FileCodeIcon} size={15} />;
 }
 
+function displayName(entry: WorkspaceEntry) {
+  return entry.editable ? entry.name.replace(/\.tex$/i, "") : entry.name;
+}
+
 function TreeItem({ entry, active, selected, onOpen, onSelect, depth = 0 }: { entry: WorkspaceEntry; active?: string; selected?: string; onOpen: (entry: WorkspaceEntry) => void; onSelect: (entry: WorkspaceEntry) => void; depth?: number }) {
   const [open, setOpen] = useState(true);
   if (entry.kind === "directory") return (
@@ -33,8 +37,8 @@ function TreeItem({ entry, active, selected, onOpen, onSelect, depth = 0 }: { en
     </div>
   );
   return (
-    <Button variant="ghost" size="sm" className={`tree-row ${active === entry.path ? "active" : selected === entry.path ? "selected" : ""}`} style={{ paddingLeft: 28 + depth * 14 }} onClick={() => { onSelect(entry); onOpen(entry); }} title={entry.editable ? entry.path : `${entry.path} (supporting file)`}>
-      <FileIcon name={entry.name} /><span>{entry.name}</span>{entry.editable ? null : <span className="readonly-dot" />}
+    <Button variant="ghost" size="sm" className={`tree-row ${active === entry.path ? "active" : selected === entry.path ? "selected" : ""}`} style={{ paddingLeft: 28 + depth * 14 }} onClick={() => { onSelect(entry); onOpen(entry); }} title={entry.editable ? displayName(entry) : `${entry.path} (supporting file)`}>
+      <FileIcon name={entry.name} /><span>{displayName(entry)}</span>{entry.editable ? null : <span className="readonly-dot" />}
     </Button>
   );
 }

@@ -2,6 +2,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@theme inline {
+  --color-destructive-foreground: var(--destructive-foreground);
+}
+
 :root {
   --font-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -53,6 +57,7 @@
   --ring: var(--color-neutral-400);
   --secondary: --alpha(var(--color-black) / 4%);
   --secondary-foreground: var(--color-neutral-800);
+  --destructive-foreground: var(--color-red-700);
 }
 
 * { box-sizing: border-box; }
@@ -66,8 +71,16 @@ button { font: inherit; }
 .brand b { color: var(--editor-accent); font-weight: 700; }
 .brand-mark { width: 26px; height: 26px; border: 1px solid #3a4047; display: grid; place-items: center; color: var(--editor-accent); background: #171a1f; border-radius: 6px; }
 .workspace-path { text-align: center; color: #666f7b; font-family: "SFMono-Regular", Consolas, monospace; font-size: .72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 18px; }
+.filename-menu { position: relative; justify-self: center; color: var(--foreground); font-family: var(--font-sans); font-size: 1.125rem; font-weight: 500; }
+.filename-menu summary { list-style: none; }
+.filename-menu summary::-webkit-details-marker { display: none; }
+.filename-menu .filename-trigger { font-size: 1.125rem; font-weight: 500; }
+.filename-menu[open] .filename-trigger { background: var(--accent); }
+.filename-popover { position: absolute; z-index: 20; top: 36px; left: 50%; width: 250px; padding: 10px; display: grid; grid-template-columns: 1fr auto; gap: 7px; transform: translateX(-50%); border: 1px solid var(--input); border-radius: 9px; background: var(--popover); color: var(--popover-foreground); box-shadow: 0 10px 30px #0006; }
+.filename-popover label { grid-column: 1 / -1; color: var(--muted-foreground); font-family: var(--font-sans); font-size: .68rem; font-weight: 600; }
+.filename-popover input { min-width: 0; height: 28px; padding: 0 8px; border: 1px solid var(--input); border-radius: 6px; outline: none; background: var(--background); color: var(--foreground); font: .72rem var(--font-mono); }
+.filename-popover input:focus { border-color: var(--editor-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--editor-accent) 20%, transparent); }
 .preview-actions { display: flex; align-items: center; gap: 8px; }
-.theme-toggle { color: #747c87; }
 .preview-actions .download-action {
   --primary: #ed4f31;
   --primary-foreground: #fff8f5;
@@ -82,7 +95,7 @@ button { font: inherit; }
 .pane-header { min-height: 38px; height: 38px; padding: 0 11px; display: flex; align-items: center; border-bottom: 1px solid var(--border); color: #747d89; font-size: .67rem; font-weight: 600; letter-spacing: .1em; }
 .explorer-header { justify-content: space-between; gap: 4px; }
 .explorer-header > span { max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.explorer-actions, .preview-tools { display: flex; align-items: center; gap: 1px; }
+.explorer-actions, .preview-tools { display: flex; align-items: center; gap: 4px; }
 .tree { padding: 6px 0 20px; overflow: auto; }
 .tree-row { border: 0; width: calc(100% - 8px); height: 29px; margin: 0 4px; display: flex; align-items: center; justify-content: flex-start; gap: 7px; padding-right: 8px; color: #8f97a3; background: transparent; border-radius: 5px; font-size: .78rem; text-align: left; cursor: pointer; white-space: nowrap; }
 .tree-row:hover { color: #d5dae1; background: #171b21; }
@@ -111,6 +124,7 @@ button { font: inherit; }
 .preview-pane { background: #171a1f; }
 .preview-pane > .pane-header { justify-content: space-between; padding-left: 13px; }
 .preview-tools { font-size: .65rem; letter-spacing: 0; font-weight: 400; color: #777f8a; }
+.zoom-value { min-width: 36px; text-align: center; font-variant-numeric: tabular-nums; }
 .paper-stage { position: relative; flex: 1; min-height: 0; overflow: auto; padding: 28px 36px 48px; display: flex; justify-content: center; align-items: flex-start; background-color: #202328; background-image: radial-gradient(#373b42 0.6px, transparent 0.6px); background-size: 12px 12px; }
 .pdf-canvas { display: block; background: var(--paper); border-radius: 3px; box-shadow: 0 2px 5px #0008, 0 22px 70px #0007; }
 .preview-empty { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 18px; color: #747c87; text-align: center; font-size: .83rem; }
@@ -138,7 +152,7 @@ button { font: inherit; }
 .status-meta svg { margin-left: 5px; color: var(--green); }
 
 .app-shell.light {
-  --bg: #f4f5f7;
+  --bg: #ffffff;
   --panel: #ffffff;
   --panel-2: #f7f7f8;
   --border: #d9dce1;
@@ -159,7 +173,7 @@ button { font: inherit; }
   --secondary-foreground: #252930;
   color: #252930;
 }
-.app-shell.light .topbar { background: #f7f7f8; }
+.app-shell.light .topbar { background: #fff; }
 .app-shell.light .brand { color: #343940; }
 .app-shell.light .brand-mark { border-color: #d2d5da; background: #fff; }
 .app-shell.light .workspace-path { color: #7b828c; }
@@ -171,16 +185,15 @@ button { font: inherit; }
 .app-shell.light .tree-row.active { color: #1d2025; background: #e2e5e9; }
 .app-shell.light .tree-row svg { color: #858c96; }
 .app-shell.light .tree-row.active svg,
-.app-shell.light .file-tab svg,
-.app-shell.light .theme-toggle { color: #555d67; }
+.app-shell.light .file-tab svg { color: #555d67; }
 .app-shell.light .editor-pane,
 .app-shell.light .preview-pane { background: #fff; }
 .app-shell.light .file-tab { color: #555d68; }
 .app-shell.light .file-tab .explorer-toggle { color: #747c87; }
 .app-shell.light .resize-handle { border-color: #d4d7dc; background: #eceef1; color: #9aa0a9; }
 .app-shell.light .resize-handle:hover { background: #e1e4e8; }
-.app-shell.light .preview-pane { background: #f4f5f7; }
-.app-shell.light .paper-stage { background-color: #e8eaed; background-image: radial-gradient(#c7cbd1 0.6px, transparent 0.6px); }
+.app-shell.light .preview-pane { background: #fff; }
+.app-shell.light .paper-stage { background-color: #fff; background-image: radial-gradient(#e4e6e9 0.6px, transparent 0.6px); }
 .app-shell.light .pdf-canvas { box-shadow: 0 2px 5px #0002, 0 22px 60px #0002; }
 .app-shell.light .preview-empty { color: #717985; }
 .app-shell.light .page-ghost { box-shadow: 0 18px 45px #0002; }
@@ -226,6 +239,7 @@ button { font: inherit; }
   --ring: var(--color-neutral-500);
   --secondary: --alpha(var(--color-white) / 4%);
   --secondary-foreground: var(--color-neutral-100);
+  --destructive-foreground: var(--color-red-400);
 }
 
 @theme inline {

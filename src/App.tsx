@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircleIcon, BracesIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, FileCodeIcon, LayoutAlignLeftIcon, TriangleAlertIcon } from "@hugeicons/core-free-icons";
+import { AlertCircleIcon, BracesIcon, CheckIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, FileCodeIcon, LayoutAlignLeftIcon, TriangleAlertIcon } from "@hugeicons/core-free-icons";
 import type { CompileResult, CompileStatus, Diagnostic, WorkspaceEntry, WorkspaceInfo } from "../shared/types";
 import { api } from "./api";
 import { Editor } from "./Editor";
@@ -26,6 +26,10 @@ function parentPath(value: string) {
   return parts.join("/");
 }
 
+function documentName(value: string) {
+  return value.split("/").pop()?.replace(/\.tex$/i, "") ?? value;
+}
+
 export function App() {
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = window.localStorage.getItem("restex-theme");
@@ -43,6 +47,8 @@ export function App() {
   const [explorerOpen, setExplorerOpen] = useState(true);
   const [editorWidth, setEditorWidth] = useState(50);
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
+  const [filenameDraft, setFilenameDraft] = useState("");
+  const filenameMenu = useRef<HTMLDetailsElement>(null);
   const saving = useRef(false);
   const compileSequence = useRef(0);
   const activeRef = useRef<string | undefined>(undefined);
@@ -108,6 +114,10 @@ export function App() {
   useEffect(() => { void loadWorkspace(true); }, [loadWorkspace]);
 
   useEffect(() => {
+    setFilenameDraft(activeFile ? documentName(activeFile) : "");
+  }, [activeFile]);
+
+  useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
     window.localStorage.setItem("restex-theme", theme);
   }, [theme]);
@@ -126,6 +136,12 @@ export function App() {
     const timer = window.setTimeout(() => void compile(true), 550);
     return () => window.clearTimeout(timer);
   }, [source, activeFile, savedSource, compile, status]);
+
+  useEffect(() => {
+    if (!activeFile || workspace?.tectonicAvailable !== true) return;
+    const timer = window.setTimeout(() => void compile(false), 0);
+    return () => window.clearTimeout(timer);
+  }, [activeFile, compile, workspace?.tectonicAvailable]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -160,8 +176,9 @@ export function App() {
 
   const createEntry = async (kind: "file" | "directory") => {
     const base = selected?.kind === "directory" ? selected.path : selected ? parentPath(selected.path) : "";
-    const name = window.prompt(kind === "file" ? "New file name" : "New folder name", kind === "file" ? "section.tex" : "assets");
-    if (!name) return;
+    const entered = window.prompt(kind === "file" ? "New document name" : "New folder name", kind === "file" ? "Untitled" : "assets");
+    if (!entered) return;
+    const name = kind === "file" && !entered.includes(".") ? `${entered}.tex` : entered;
     const path = [base, name].filter(Boolean).join("/");
     try { await api.createEntry(path, kind); await loadWorkspace(false); if (kind === "file" && name.endsWith(".tex")) await openFile(path); }
     catch (error) { setNotice(error instanceof Error ? error.message : "Could not create entry."); }
@@ -169,8 +186,11 @@ export function App() {
 
   const renameEntry = async () => {
     if (!selected) return;
-    const name = window.prompt(`Rename ${selected.kind}`, selected.path.split("/").pop());
-    if (!name) return;
+    const entry = workspace ? flatten(workspace.entries).find((item) => item.path === selected.path) : undefined;
+    const isDocument = entry?.editable === true;
+    const entered = window.prompt(`Rename ${selected.kind}`, isDocument ? documentName(selected.path) : selected.path.split("/").pop());
+    if (!entered) return;
+    const name = isDocument ? `${entered.replace(/\.tex$/i, "")}.tex` : entered;
     const to = [parentPath(selected.path), name].filter(Boolean).join("/");
     try {
       await api.renameEntry(selected.path, to);
@@ -181,6 +201,23 @@ export function App() {
       if (wasActive && name.endsWith(".tex")) await openFile(to);
     }
     catch (error) { setNotice(error instanceof Error ? error.message : "Could not rename entry."); }
+  };
+
+  const renameActiveFile = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!activeFile) return;
+    const name = filenameDraft.trim().replace(/\.tex$/i, "");
+    const currentName = documentName(activeFile);
+    if (!name || name === currentName) { filenameMenu.current?.removeAttribute("open"); return; }
+    const filename = `${name}.tex`;
+    const to = [parentPath(activeFile), filename].filter(Boolean).join("/");
+    try {
+      await api.renameEntry(activeFile, to);
+      setActiveFile(undefined);
+      await loadWorkspace(false);
+      await openFile(to);
+      filenameMenu.current?.removeAttribute("open");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not rename file."); }
   };
 
   const deleteEntry = async () => {
@@ -211,7 +248,16 @@ export function App() {
     <main className={`app-shell ${theme}`}>
       <header className="topbar">
         <div className="brand"><div className="brand-mark"><AppIcon icon={BracesIcon} size={17} /></div><span>RES<b>TEX</b></span></div>
-        <div className="workspace-path">{workspace?.path ?? "Opening workspace…"}</div>
+        {activeFile ? (
+          <details className="filename-menu" ref={filenameMenu}>
+            <Button className="filename-trigger" variant="ghost" size="sm" render={<summary />}><span>{documentName(activeFile)}</span><AppIcon icon={ChevronDownIcon} size={13} /></Button>
+            <form className="filename-popover" onSubmit={(event) => void renameActiveFile(event)}>
+              <label htmlFor="active-filename">Filename</label>
+              <input id="active-filename" value={filenameDraft} onChange={(event) => setFilenameDraft(event.target.value)} autoComplete="off" spellCheck={false} />
+              <Button size="xs" type="submit">Rename</Button>
+            </form>
+          </details>
+        ) : <div className="workspace-path">No file open</div>}
       </header>
 
       {!workspace?.tectonicAvailable && workspace ? <Alert variant="info" className="setup-banner"><AppIcon icon={TriangleAlertIcon} /><AlertDescription><strong>Tectonic is not installed.</strong> The editor works, but preview requires <code>brew install tectonic</code>.</AlertDescription></Alert> : null}
@@ -224,22 +270,22 @@ export function App() {
         <section className="editor-pane">
           <div className="pane-header file-tab">
             <IconButton className="explorer-toggle" onClick={() => setExplorerOpen((value) => !value)} label="Toggle explorer"><AppIcon icon={LayoutAlignLeftIcon} /></IconButton>
-            {activeFile ? <><AppIcon icon={FileCodeIcon} size={14} /><span>{activeFile}</span>{hasUnsaved ? <i className="unsaved" aria-label="Unsaved" /> : null}</> : <span>EDITOR</span>}
+            {activeFile ? <><AppIcon icon={FileCodeIcon} size={14} /><span>{documentName(activeFile)}</span>{hasUnsaved ? <i className="unsaved" aria-label="Unsaved" /> : null}</> : <span>EDITOR</span>}
           </div>
           {activeFile ? <Editor value={source} filePath={activeFile} onChange={setSource} onSave={() => void compile(true)} onCompile={() => void compile(true)} onCursor={(line, column) => setCursor({ line, column })} /> : (
             <div className="editor-empty">
               <div className="empty-icon"><AppIcon icon={BracesIcon} size={26} /></div>
               <h1>{workspace?.isEmpty ? "Start your resume" : "Choose a LaTeX file"}</h1>
-              <p>{workspace?.isEmpty ? "Create a clean US Letter starting point, then make it yours." : "Open a .tex file from the explorer to begin editing."}</p>
-              {workspace?.isEmpty ? <Button className="create-starter" variant="outline" onClick={() => void createStarter()}>Create resume.tex</Button> : null}
+              <p>{workspace?.isEmpty ? "Create a clean US Letter starting point, then make it yours." : "Open a document from the explorer to begin editing."}</p>
+              {workspace?.isEmpty ? <Button className="create-starter" variant="outline" onClick={() => void createStarter()}>Create Resume</Button> : null}
             </div>
           )}
         </section>
         <div className="resize-handle" onMouseDown={beginResize} role="separator" aria-label="Resize editor and preview"><AppIcon icon={ChevronLeftIcon} size={10} /><AppIcon icon={ChevronRightIcon} size={10} /></div>
-        <PdfPreview pdfUrl={result?.success ? result.pdfUrl : undefined} pageCount={result?.pageCount} compiling={status === "compiling" || status === "saving"} error={status === "error" ? "Fix the errors below to update the preview." : undefined} actionsDisabled={!activeFile || status === "unavailable"} onBuild={() => void compile(true)} onDownload={() => void downloadPdf()} theme={theme} onToggleTheme={() => setTheme((value) => value === "dark" ? "light" : "dark")} />
+        <PdfPreview pdfUrl={result?.success ? result.pdfUrl : undefined} pageCount={result?.pageCount} compiling={status === "compiling" || status === "saving"} error={status === "error" ? "Fix the errors below to update the preview." : undefined} actionsDisabled={!activeFile || status === "unavailable"} onBuild={() => void compile(true)} onDownload={() => void downloadPdf()} />
       </div>
 
-      {diagnostics.length > 0 ? <section className="diagnostics"><div className="diagnostics-title"><AppIcon icon={AlertCircleIcon} size={14} /> PROBLEMS <Badge variant={diagnostics.some((item) => item.severity === "error") ? "error" : "warning"}>{diagnostics.length}</Badge></div>{diagnostics.slice(0, 4).map((item, index) => <div className={`diagnostic ${item.severity}`} key={`${item.message}-${index}`}><span>{item.severity === "error" ? "×" : "!"}</span><p>{item.message}</p><small>{item.file}{item.line ? `:${item.line}` : ""}</small></div>)}</section> : null}
+      {diagnostics.length > 0 ? <section className="diagnostics"><div className="diagnostics-title"><AppIcon icon={AlertCircleIcon} size={14} /> PROBLEMS <Badge variant={diagnostics.some((item) => item.severity === "error") ? "error" : "warning"}>{diagnostics.length}</Badge></div>{diagnostics.slice(0, 4).map((item, index) => <div className={`diagnostic ${item.severity}`} key={`${item.message}-${index}`}><span>{item.severity === "error" ? "×" : "!"}</span><p>{item.message}</p><small>{item.file ? documentName(item.file) : ""}{item.line ? `:${item.line}` : ""}</small></div>)}</section> : null}
       <footer className="statusbar">
         <div><span className={`status-indicator ${status}`} />{statusLabel}{hasUnsaved ? " • unsaved" : ""}</div>
         <div className="status-meta"><span>US LETTER</span><span>PAGE {result?.pageCount ? `1 / ${result.pageCount}` : "—"}</span><span>Ln {cursor.line}, Col {cursor.column}</span><span>LaTeX</span>{status === "success" ? <AppIcon icon={CheckIcon} size={13} /> : null}</div>
