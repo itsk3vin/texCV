@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 import type { CompileStatus, WorkspaceEvent } from "../shared/types.js";
 import { CompileManager, detectTectonic } from "./compiler.js";
 import { WorkspacePathError } from "./path-security.js";
+import { STARTER } from "./starter.js";
 import {
-  STARTER,
   createWorkspaceEntry,
   deleteWorkspaceEntry,
   readTree,
@@ -80,10 +80,11 @@ export async function createApp(options: AppOptions): Promise<{ app: Express; cl
     response.status(204).end();
   }));
 
-  app.post("/api/starter", asyncRoute(async (_request, response) => {
-    await createWorkspaceEntry(options.root, "resume.tex", "file");
-    await writeWorkspaceFile(options.root, "resume.tex", STARTER);
-    response.status(201).json({ path: "resume.tex" });
+  app.post("/api/starter", asyncRoute(async (request, response) => {
+    const starterPath = String(request.body?.path ?? "resume.tex");
+    await createWorkspaceEntry(options.root, starterPath, "file");
+    await writeWorkspaceFile(options.root, starterPath, STARTER);
+    response.status(201).json({ path: starterPath });
   }));
 
   app.post("/api/compile", asyncRoute(async (request, response) => {

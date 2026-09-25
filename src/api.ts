@@ -27,6 +27,6 @@ export const api = {
   createEntry: (path: string, kind: "file" | "directory") => request("/api/entry", json("POST", { path, kind })),
   renameEntry: (from: string, to: string) => request("/api/entry", json("PATCH", { from, to })),
   deleteEntry: (path: string) => request<void>(`/api/entry?path=${encodeURIComponent(path)}`, { method: "DELETE" }),
-  createStarter: () => request<{ path: string }>("/api/starter", { method: "POST" }),
+  createStarter: (path?: string) => request<{ path: string }>("/api/starter", json("POST", path ? { path } : {})),
   compile: (entryFile: string) => request<CompileResult>("/api/compile", json("POST", { entryFile })),
 };

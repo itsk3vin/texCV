@@ -3,6 +3,7 @@ export type WorkspaceEntry = {
   path: string;
   kind: "file" | "directory";
   editable: boolean;
+  modifiedAt?: number;
   children?: WorkspaceEntry[];
 };
 

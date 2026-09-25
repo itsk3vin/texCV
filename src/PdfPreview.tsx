@@ -43,29 +43,29 @@ export function PdfPreview({ pdfUrl, compiling, error, pageCount, actionsDisable
   }, [pdfUrl, zoom]);
 
   return (
-    <section className="preview-pane" aria-label="PDF preview">
-      <div className="pane-header">
-        <div className="preview-tools" aria-label="Preview zoom">
+    <section className="flex min-h-0 min-w-0 flex-col bg-(--surface-preview)" aria-label="PDF preview">
+      <div className="flex h-9.5 min-h-9.5 items-center justify-between border-b border-border px-3 text-[.67rem] font-semibold text-(--text-subtle) tracking-[.1em]">
+        <div className="flex items-center gap-1 text-[.65rem] font-normal text-(--text-subtle) tracking-normal" aria-label="Preview zoom">
           <IconButton onClick={() => setZoom((v) => Math.max(.6, v - .1))} label="Zoom out"><AppIcon icon={ZoomOutIcon} /></IconButton>
-          <span className="zoom-value">{Math.round(zoom * 100)}%</span>
+          <span className="min-w-9 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
           <IconButton onClick={() => setZoom((v) => Math.min(1.8, v + .1))} label="Zoom in"><AppIcon icon={ZoomInIcon} /></IconButton>
         </div>
-        <div className="preview-actions" aria-label="Document actions">
+        <div className="flex items-center gap-2" aria-label="Document actions">
           <Button className="build-action" variant="outline" size="sm" onClick={onBuild} disabled={actionsDisabled}>Compile</Button>
           <Button className="download-action" size="sm" onClick={onDownload} disabled={actionsDisabled}><AppIcon icon={Download06Icon} /> Download PDF</Button>
         </div>
       </div>
-      {pageCount && pageCount > 1 ? <div className="page-warning"><AppIcon icon={TriangleAlertIcon} /><Badge variant="warning">{pageCount} pages</Badge> showing page 1</div> : null}
-      <div className="paper-stage" ref={container}>
-        {pdfUrl ? <canvas ref={canvas} className="pdf-canvas" /> : (
-          <div className="preview-empty">
-            <div className="page-ghost"><span>8.5 × 11</span></div>
+      {pageCount && pageCount > 1 ? <div className="flex h-8.5 items-center justify-center gap-2 border-b border-(--warning-border) bg-(--warning-surface) text-[.75rem] text-(--warning-text)"><AppIcon icon={TriangleAlertIcon} /><Badge variant="warning">{pageCount} pages</Badge> showing page 1</div> : null}
+      <div className="relative flex min-h-0 flex-1 items-start justify-center overflow-auto bg-(--surface-stage) bg-[radial-gradient(var(--grid-dot)_0.6px,transparent_0.6px)] bg-size-[12px_12px] px-9 pt-7 pb-12" ref={container}>
+        {pdfUrl ? <canvas ref={canvas} className="block rounded-[3px] bg-(--paper) shadow-(--shadow-paper)" /> : (
+          <div className="flex self-center flex-col items-center gap-4.5 text-center text-[.83rem] text-(--text-subtle)">
+            <div className="grid w-42.5 aspect-[8.5/11] place-items-center rounded-[3px] bg-(--paper) text-[.7rem] text-(--text-faint) tracking-[.13em] shadow-(--shadow-paper)"><span>8.5 × 11</span></div>
             <p>{error || "Your compiled resume will appear here."}</p>
           </div>
         )}
-        {compiling ? <div className="compiling-pill"><Spinner /> Building preview</div> : null}
+        {compiling ? <div className="sticky top-2 ml-[-120px] flex h-7 items-center gap-2 rounded-md border border-border bg-(--surface-raised)/92 px-2.5 text-[.7rem] text-foreground shadow-(--shadow-elevated) backdrop-blur-lg"><Spinner /> Building preview</div> : null}
       </div>
-      {renderError ? <div className="preview-error">{renderError}</div> : null}
+      {renderError ? <div className="border-t border-(--danger-border) bg-(--danger-surface) px-3 py-2 text-[.75rem] text-(--danger-text)">{renderError}</div> : null}
     </section>
   );
 }

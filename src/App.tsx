@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircleIcon, BracesIcon, CheckIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, FileCodeIcon, LayoutAlignLeftIcon, TriangleAlertIcon } from "@hugeicons/core-free-icons";
+import { AlertCircleIcon, BracesIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, Download06Icon, FileCodeIcon, FileStarIcon, PencilEdit01Icon, TriangleAlertIcon } from "@hugeicons/core-free-icons";
+import { ChevronDown } from "lucide-react";
 import type { CompileResult, CompileStatus, Diagnostic, WorkspaceEntry, WorkspaceInfo } from "../shared/types";
 import { api } from "./api";
 import { Editor } from "./Editor";
@@ -8,12 +9,15 @@ import { PdfPreview } from "./PdfPreview";
 import { Alert, AlertAction, AlertDescription } from "./components/ui/alert";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
-import { IconButton } from "./components/IconButton";
+import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from "./components/ui/dialog";
+import { Input } from "./components/ui/input";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "./components/ui/menu";
 import { AppIcon } from "./components/AppIcon";
+import { Sidebar, SidebarInset, SidebarProvider } from "./components/ui/sidebar";
 
-function firstTex(entries: WorkspaceEntry[]): string | undefined {
+function firstTex(entries: WorkspaceEntry[], preferred?: string | null): string | undefined {
   const files = entries.flatMap((entry): WorkspaceEntry[] => entry.kind === "directory" ? flatten(entry.children ?? []) : [entry]);
-  return files.find((entry) => entry.path === "resume.tex")?.path ?? files.find((entry) => entry.editable)?.path;
+  return files.find((entry) => entry.editable && entry.path === preferred)?.path ?? files.find((entry) => entry.path === "resume.tex")?.path ?? files.find((entry) => entry.editable)?.path;
 }
 
 function flatten(entries: WorkspaceEntry[]): WorkspaceEntry[] {
@@ -47,8 +51,11 @@ export function App() {
   const [explorerOpen, setExplorerOpen] = useState(true);
   const [editorWidth, setEditorWidth] = useState(50);
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
-  const [filenameDraft, setFilenameDraft] = useState("");
-  const filenameMenu = useRef<HTMLDetailsElement>(null);
+  const [defaultFile, setDefaultFile] = useState(() => window.localStorage.getItem("restex-default-document"));
+  const [documentDialog, setDocumentDialog] = useState<"create" | "rename" | null>(null);
+  const [documentTarget, setDocumentTarget] = useState<string>();
+  const [deleteTarget, setDeleteTarget] = useState<WorkspaceEntry>();
+  const [documentNameDraft, setDocumentNameDraft] = useState("");
   const saving = useRef(false);
   const compileSequence = useRef(0);
   const activeRef = useRef<string | undefined>(undefined);
@@ -64,7 +71,7 @@ export function App() {
       setWorkspace(info);
       if (!info.tectonicAvailable) setStatus("unavailable");
       if (selectDefault && !activeRef.current) {
-        const next = firstTex(info.entries);
+        const next = firstTex(info.entries, window.localStorage.getItem("restex-default-document"));
         if (next) await openFile(next);
       }
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not load workspace."); }
@@ -114,11 +121,8 @@ export function App() {
   useEffect(() => { void loadWorkspace(true); }, [loadWorkspace]);
 
   useEffect(() => {
-    setFilenameDraft(activeFile ? documentName(activeFile) : "");
-  }, [activeFile]);
-
-  useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.classList.toggle("light", theme === "light");
     window.localStorage.setItem("restex-theme", theme);
   }, [theme]);
 
@@ -145,8 +149,7 @@ export function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey && event.key.toLowerCase() === "b") { event.preventDefault(); setExplorerOpen((value) => !value); }
-      if (event.metaKey && event.key.toLowerCase() === "p") { event.preventDefault(); document.querySelector<HTMLButtonElement>(".tree-row")?.focus(); }
+      if (event.metaKey && event.key.toLowerCase() === "p") { event.preventDefault(); document.querySelector<HTMLButtonElement>(".resume-row")?.focus(); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -174,63 +177,74 @@ export function App() {
     catch (error) { setNotice(error instanceof Error ? error.message : "Could not create starter."); }
   };
 
-  const createEntry = async (kind: "file" | "directory") => {
-    const base = selected?.kind === "directory" ? selected.path : selected ? parentPath(selected.path) : "";
-    const entered = window.prompt(kind === "file" ? "New document name" : "New folder name", kind === "file" ? "Untitled" : "assets");
-    if (!entered) return;
-    const name = kind === "file" && !entered.includes(".") ? `${entered}.tex` : entered;
-    const path = [base, name].filter(Boolean).join("/");
-    try { await api.createEntry(path, kind); await loadWorkspace(false); if (kind === "file" && name.endsWith(".tex")) await openFile(path); }
-    catch (error) { setNotice(error instanceof Error ? error.message : "Could not create entry."); }
+  const openDocumentDialog = (mode: "create" | "rename", target = activeFile) => {
+    setDocumentTarget(mode === "rename" ? target : undefined);
+    setDocumentNameDraft(mode === "rename" && target ? documentName(target) : "Untitled");
+    setDocumentDialog(mode);
   };
 
-  const renameEntry = async () => {
-    if (!selected) return;
-    const entry = workspace ? flatten(workspace.entries).find((item) => item.path === selected.path) : undefined;
-    const isDocument = entry?.editable === true;
-    const entered = window.prompt(`Rename ${selected.kind}`, isDocument ? documentName(selected.path) : selected.path.split("/").pop());
-    if (!entered) return;
-    const name = isDocument ? `${entered.replace(/\.tex$/i, "")}.tex` : entered;
-    const to = [parentPath(selected.path), name].filter(Boolean).join("/");
-    try {
-      await api.renameEntry(selected.path, to);
-      const wasActive = activeFile === selected.path;
-      setSelected({ path: to, kind: selected.kind });
-      if (wasActive) setActiveFile(undefined);
-      await loadWorkspace(false);
-      if (wasActive && name.endsWith(".tex")) await openFile(to);
-    }
-    catch (error) { setNotice(error instanceof Error ? error.message : "Could not rename entry."); }
-  };
-
-  const renameActiveFile = async (event: React.FormEvent) => {
+  const submitDocumentDialog = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!activeFile) return;
-    const name = filenameDraft.trim().replace(/\.tex$/i, "");
-    const currentName = documentName(activeFile);
-    if (!name || name === currentName) { filenameMenu.current?.removeAttribute("open"); return; }
+    const name = documentNameDraft.trim().replace(/\.tex$/i, "");
+    if (!name || !documentDialog) return;
     const filename = `${name}.tex`;
-    const to = [parentPath(activeFile), filename].filter(Boolean).join("/");
+    if (documentDialog === "create") {
+      const base = selected?.kind === "directory" ? selected.path : selected ? parentPath(selected.path) : "";
+      const path = [base, filename].filter(Boolean).join("/");
+      try {
+        await api.createStarter(path);
+        await loadWorkspace(false);
+        await openFile(path);
+        setDocumentDialog(null);
+      } catch (error) { setNotice(error instanceof Error ? error.message : "Could not create resume."); }
+      return;
+    }
+    const renameFrom = documentTarget ?? activeFile;
+    if (!renameFrom || name === documentName(renameFrom)) { setDocumentDialog(null); return; }
+    const to = [parentPath(renameFrom), filename].filter(Boolean).join("/");
     try {
-      await api.renameEntry(activeFile, to);
-      setActiveFile(undefined);
+      await api.renameEntry(renameFrom, to);
+      if (defaultFile === renameFrom) {
+        window.localStorage.setItem("restex-default-document", to);
+        setDefaultFile(to);
+      }
       await loadWorkspace(false);
-      await openFile(to);
-      filenameMenu.current?.removeAttribute("open");
+      if (activeFile === renameFrom) {
+        setActiveFile(undefined);
+        await openFile(to);
+      }
+      setDocumentDialog(null);
+      setDocumentTarget(undefined);
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not rename file."); }
   };
 
-  const deleteEntry = async () => {
-    if (!selected || !window.confirm(`Delete ${selected.path}? This cannot be undone.`)) return;
+  const deleteResume = async () => {
+    if (!deleteTarget) return;
+    const path = deleteTarget.path;
     try {
-      await api.deleteEntry(selected.path);
-      if (activeFile === selected.path || (selected.kind === "directory" && activeFile?.startsWith(`${selected.path}/`))) {
-        setActiveFile(undefined); setSource(""); setSavedSource(""); setResult(undefined);
+      await api.deleteEntry(path);
+      if (defaultFile === path) {
+        window.localStorage.removeItem("restex-default-document");
+        setDefaultFile(null);
       }
-      setSelected(undefined);
+      if (activeFile === path) {
+        setActiveFile(undefined);
+        setSelected(undefined);
+        setSource("");
+        setSavedSource("");
+        setResult(undefined);
+        setDiagnostics([]);
+      }
+      setDeleteTarget(undefined);
       await loadWorkspace(false);
-    }
-    catch (error) { setNotice(error instanceof Error ? error.message : "Could not delete entry."); }
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not delete resume."); }
+  };
+
+  const makeActiveFileDefault = () => {
+    if (!activeFile) return;
+    window.localStorage.setItem("restex-default-document", activeFile);
+    setDefaultFile(activeFile);
+    setNotice(`${documentName(activeFile)} will open by default.`);
   };
 
   const beginResize = (event: React.MouseEvent) => {
@@ -245,51 +259,80 @@ export function App() {
   const hasUnsaved = source !== savedSource;
 
   return (
-    <main className={`app-shell ${theme}`}>
-      <header className="topbar">
-        <div className="brand"><div className="brand-mark"><AppIcon icon={BracesIcon} size={17} /></div><span>RES<b>TEX</b></span></div>
+    <SidebarProvider open={explorerOpen} onOpenChange={setExplorerOpen} className={`relative isolate h-dvh min-h-0 overflow-hidden bg-(--bg) [&_svg]:[stroke-width:2] ${theme}`} style={{ "--sidebar-width": "15rem" } as React.CSSProperties}>
+      <Sidebar collapsible="icon" className="border-border bg-(--surface-sidebar)">
+        <FileExplorer entries={workspace?.entries ?? []} active={activeFile} onSelect={(entry) => setSelected({ path: entry.path, kind: entry.kind })} onOpen={(entry) => void openFile(entry.path)} onCreate={() => openDocumentDialog("create")} onRename={(entry) => openDocumentDialog("rename", entry.path)} onDelete={setDeleteTarget} theme={theme} onToggleTheme={() => setTheme((value) => value === "dark" ? "light" : "dark")} />
+      </Sidebar>
+      <SidebarInset className="h-full min-h-0 min-w-0 overflow-hidden bg-(--bg)">
+        <header className="flex h-12 shrink-0 items-center justify-center border-b border-border bg-(--surface-header)">
         {activeFile ? (
-          <details className="filename-menu" ref={filenameMenu}>
-            <Button className="filename-trigger" variant="ghost" size="sm" render={<summary />}><span>{documentName(activeFile)}</span><AppIcon icon={ChevronDownIcon} size={13} /></Button>
-            <form className="filename-popover" onSubmit={(event) => void renameActiveFile(event)}>
-              <label htmlFor="active-filename">Filename</label>
-              <input id="active-filename" value={filenameDraft} onChange={(event) => setFilenameDraft(event.target.value)} autoComplete="off" spellCheck={false} />
-              <Button size="xs" type="submit">Rename</Button>
-            </form>
-          </details>
-        ) : <div className="workspace-path">No file open</div>}
-      </header>
+          <Menu>
+            <MenuTrigger render={<Button className="text-lg font-medium" variant="ghost" size="sm" />}><span>{documentName(activeFile)}</span><ChevronDown size={13} /></MenuTrigger>
+            <MenuPopup className="min-w-45" align="center">
+              <MenuItem onClick={() => openDocumentDialog("rename")}><AppIcon icon={PencilEdit01Icon} />Rename</MenuItem>
+              <MenuItem onClick={makeActiveFileDefault} disabled={defaultFile === activeFile}><AppIcon icon={FileStarIcon} />Make default</MenuItem>
+              <MenuItem onClick={() => void downloadPdf()} disabled={status === "unavailable"}><AppIcon icon={Download06Icon} />Download PDF</MenuItem>
+            </MenuPopup>
+          </Menu>
+        ) : <div className="overflow-hidden px-4.5 text-center font-mono text-[.72rem] text-(--text-subtle) text-ellipsis whitespace-nowrap max-[900px]:hidden">No file open</div>}
+        </header>
 
-      {!workspace?.tectonicAvailable && workspace ? <Alert variant="info" className="setup-banner"><AppIcon icon={TriangleAlertIcon} /><AlertDescription><strong>Tectonic is not installed.</strong> The editor works, but preview requires <code>brew install tectonic</code>.</AlertDescription></Alert> : null}
-      {notice ? <Alert variant="error" className="notice"><AppIcon icon={AlertCircleIcon} /><AlertDescription>{notice}</AlertDescription><AlertAction><Button variant="ghost" size="xs" onClick={() => setNotice(undefined)}>Dismiss</Button></AlertAction></Alert> : null}
+      {!workspace?.tectonicAvailable && workspace ? <Alert variant="info" className="min-h-9.5 rounded-none border-x-0 px-3.5 py-2"><AppIcon icon={TriangleAlertIcon} /><AlertDescription><strong>Tectonic is not installed.</strong> The editor works, but preview requires <code className="rounded bg-input px-1.5 py-0.5 text-foreground">brew install tectonic</code>.</AlertDescription></Alert> : null}
+      {notice ? <Alert variant="error" className="min-h-9.5 rounded-none border-x-0 px-3.5 py-2"><AppIcon icon={AlertCircleIcon} /><AlertDescription>{notice}</AlertDescription><AlertAction><Button variant="ghost" size="xs" onClick={() => setNotice(undefined)}>Dismiss</Button></AlertAction></Alert> : null}
 
-      <div className="workspace-grid" style={{ gridTemplateColumns: explorerOpen ? `240px minmax(320px, ${editorWidth}fr) 5px minmax(360px, ${100 - editorWidth}fr)` : `0 minmax(320px, ${editorWidth}fr) 5px minmax(360px, ${100 - editorWidth}fr)` }}>
-        <div className={explorerOpen ? "explorer-wrap" : "explorer-wrap closed"}>
-          {workspace && explorerOpen ? <FileExplorer entries={workspace.entries} active={activeFile} selected={selected?.path} workspaceName={workspace.name} onSelect={(entry) => setSelected({ path: entry.path, kind: entry.kind })} onOpen={(entry) => entry.editable ? void openFile(entry.path) : setNotice(`${entry.name} is a supporting file and cannot be edited here.`)} onCreate={(kind) => void createEntry(kind)} onRename={() => void renameEntry()} onDelete={() => void deleteEntry()} onRefresh={() => void loadWorkspace(false)} /> : null}
-        </div>
-        <section className="editor-pane">
-          <div className="pane-header file-tab">
-            <IconButton className="explorer-toggle" onClick={() => setExplorerOpen((value) => !value)} label="Toggle explorer"><AppIcon icon={LayoutAlignLeftIcon} /></IconButton>
-            {activeFile ? <><AppIcon icon={FileCodeIcon} size={14} /><span>{documentName(activeFile)}</span>{hasUnsaved ? <i className="unsaved" aria-label="Unsaved" /> : null}</> : <span>EDITOR</span>}
+      <div className="grid min-h-0 flex-1 max-[900px]:grid-cols-1! max-[900px]:grid-rows-[minmax(45%,1fr)_minmax(45%,1fr)]" style={{ gridTemplateColumns: `minmax(320px, ${editorWidth}fr) 5px minmax(360px, ${100 - editorWidth}fr)` }}>
+        <section className="flex min-h-0 min-w-0 flex-col bg-(--surface-editor) max-[900px]:col-span-full max-[900px]:border-b-4 max-[900px]:border-border">
+          <div className="flex h-9.5 min-h-9.5 items-center gap-2 border-b border-border px-3 font-mono text-[.67rem] font-normal text-(--text-subtle) tracking-[.02em]">
+            {activeFile ? <><AppIcon icon={FileCodeIcon} size={14} /><span>{documentName(activeFile)}</span>{hasUnsaved ? <i className="size-1.5 rounded-full bg-(--editor-accent)" aria-label="Unsaved" /> : null}</> : <span>EDITOR</span>}
           </div>
           {activeFile ? <Editor value={source} filePath={activeFile} onChange={setSource} onSave={() => void compile(true)} onCompile={() => void compile(true)} onCursor={(line, column) => setCursor({ line, column })} /> : (
-            <div className="editor-empty">
-              <div className="empty-icon"><AppIcon icon={BracesIcon} size={26} /></div>
-              <h1>{workspace?.isEmpty ? "Start your resume" : "Choose a LaTeX file"}</h1>
-              <p>{workspace?.isEmpty ? "Create a clean US Letter starting point, then make it yours." : "Open a document from the explorer to begin editing."}</p>
-              {workspace?.isEmpty ? <Button className="create-starter" variant="outline" onClick={() => void createStarter()}>Create Resume</Button> : null}
+            <div className="flex flex-1 flex-col items-center justify-center p-7 text-center">
+              <div className="grid size-13.5 place-items-center rounded-lg border border-border bg-(--surface-raised) text-(--editor-accent) shadow-(--shadow-elevated)"><AppIcon icon={BracesIcon} size={26} /></div>
+              <h1 className="mt-4.5 mb-2 text-[1.08rem] font-semibold text-foreground">{workspace?.isEmpty ? "Start your resume" : "Choose a LaTeX file"}</h1>
+              <p className="m-0 max-w-85 text-[.85rem] leading-relaxed text-muted-foreground">{workspace?.isEmpty ? "Create a clean US Letter starting point, then make it yours." : "Open a document from the explorer to begin editing."}</p>
+              {workspace?.isEmpty ? <Button className="mt-5" variant="outline" onClick={() => void createStarter()}>Create Resume</Button> : null}
             </div>
           )}
         </section>
-        <div className="resize-handle" onMouseDown={beginResize} role="separator" aria-label="Resize editor and preview"><AppIcon icon={ChevronLeftIcon} size={10} /><AppIcon icon={ChevronRightIcon} size={10} /></div>
+        <div className="z-2 flex cursor-col-resize items-center justify-center overflow-hidden border-x border-border bg-(--handle) text-(--text-faint) hover:bg-(--handle-hover) hover:text-(--editor-accent) max-[900px]:hidden" onMouseDown={beginResize} role="separator" aria-label="Resize editor and preview"><AppIcon icon={ChevronLeftIcon} size={10} /><AppIcon icon={ChevronRightIcon} size={10} /></div>
         <PdfPreview pdfUrl={result?.success ? result.pdfUrl : undefined} pageCount={result?.pageCount} compiling={status === "compiling" || status === "saving"} error={status === "error" ? "Fix the errors below to update the preview." : undefined} actionsDisabled={!activeFile || status === "unavailable"} onBuild={() => void compile(true)} onDownload={() => void downloadPdf()} />
       </div>
 
-      {diagnostics.length > 0 ? <section className="diagnostics"><div className="diagnostics-title"><AppIcon icon={AlertCircleIcon} size={14} /> PROBLEMS <Badge variant={diagnostics.some((item) => item.severity === "error") ? "error" : "warning"}>{diagnostics.length}</Badge></div>{diagnostics.slice(0, 4).map((item, index) => <div className={`diagnostic ${item.severity}`} key={`${item.message}-${index}`}><span>{item.severity === "error" ? "×" : "!"}</span><p>{item.message}</p><small>{item.file ? documentName(item.file) : ""}{item.line ? `:${item.line}` : ""}</small></div>)}</section> : null}
-      <footer className="statusbar">
-        <div><span className={`status-indicator ${status}`} />{statusLabel}{hasUnsaved ? " • unsaved" : ""}</div>
-        <div className="status-meta"><span>US LETTER</span><span>PAGE {result?.pageCount ? `1 / ${result.pageCount}` : "—"}</span><span>Ln {cursor.line}, Col {cursor.column}</span><span>LaTeX</span>{status === "success" ? <AppIcon icon={CheckIcon} size={13} /> : null}</div>
+      {diagnostics.length > 0 ? <section className="max-h-37.5 shrink-0 overflow-auto border-t border-(--danger-border) bg-(--danger-surface)"><div className="flex h-8 items-center gap-2 px-3 text-[.65rem] text-(--text-subtle) tracking-[.08em]"><AppIcon icon={AlertCircleIcon} size={14} /> PROBLEMS <Badge variant={diagnostics.some((item) => item.severity === "error") ? "error" : "warning"}>{diagnostics.length}</Badge></div>{diagnostics.slice(0, 4).map((item, index) => <div className="grid min-h-7 grid-cols-[18px_1fr_auto] items-center gap-1 border-t border-(--danger-border) px-3 py-1 text-[.72rem]" key={`${item.message}-${index}`}><span className={item.severity === "error" ? "font-bold text-(--red)" : "font-bold text-(--warning-text)"}>{item.severity === "error" ? "×" : "!"}</span><p className="m-0 overflow-hidden text-foreground text-ellipsis whitespace-nowrap">{item.message}</p><small className="font-mono text-(--text-faint)">{item.file ? documentName(item.file) : ""}{item.line ? `:${item.line}` : ""}</small></div>)}</section> : null}
+      <footer className="flex h-6.25 shrink-0 items-center justify-between border-t border-border bg-(--surface-status) px-2 text-[.65rem] text-(--text-subtle)">
+        <div className="flex items-center gap-2 capitalize"><span className={`size-1.5 rounded-full ${status === "success" ? "bg-(--green)" : status === "compiling" || status === "saving" ? "bg-(--editor-accent)" : status === "error" || status === "unavailable" ? "bg-(--red)" : "bg-(--text-faint)"}`} />{statusLabel}{hasUnsaved ? " • unsaved" : ""}</div>
+        <div className="flex h-full items-center gap-0 [&>span]:flex [&>span]:h-full [&>span]:items-center [&>span]:border-l [&>span]:border-border [&>span]:px-2 max-[900px]:[&>span:nth-child(-n+2)]:hidden"><span>US LETTER</span><span>PAGE {result?.pageCount ? `1 / ${result.pageCount}` : "—"}</span><span>Ln {cursor.line}, Col {cursor.column}</span><span>LaTeX</span>{status === "success" ? <AppIcon icon={CheckIcon} size={13} className="ml-1 text-(--green)" /> : null}</div>
       </footer>
-    </main>
+      </SidebarInset>
+      <Dialog open={documentDialog !== null} onOpenChange={(open) => { if (!open) { setDocumentDialog(null); setDocumentTarget(undefined); } }}>
+        <DialogPopup>
+          <form className="flex min-h-0 flex-1 flex-col" onSubmit={(event) => void submitDocumentDialog(event)}>
+            <DialogHeader>
+              <DialogTitle>{documentDialog === "rename" ? "Rename resume" : "New resume"}</DialogTitle>
+              <DialogDescription>{documentDialog === "rename" ? "Choose a new name for this local resume." : "Choose a name for the new local resume."}</DialogDescription>
+            </DialogHeader>
+            <DialogPanel>
+              <Input autoFocus value={documentNameDraft} onChange={(event) => setDocumentNameDraft(event.target.value)} aria-label="Resume name" />
+            </DialogPanel>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDocumentDialog(null)}>Cancel</Button>
+              <Button type="submit">{documentDialog === "rename" ? "Rename" : "Create resume"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogPopup>
+      </Dialog>
+      <Dialog open={deleteTarget !== undefined} onOpenChange={(open) => { if (!open) setDeleteTarget(undefined); }}>
+        <DialogPopup>
+          <DialogHeader>
+            <DialogTitle>Delete resume?</DialogTitle>
+            <DialogDescription>This will permanently delete {deleteTarget ? `“${documentName(deleteTarget.path)}”` : "this resume"} from your local workspace.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(undefined)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => void deleteResume()}>Delete resume</Button>
+          </DialogFooter>
+        </DialogPopup>
+      </Dialog>
+    </SidebarProvider>
   );
 }

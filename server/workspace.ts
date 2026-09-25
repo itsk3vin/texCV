@@ -18,7 +18,8 @@ export async function readTree(root: string): Promise<WorkspaceEntry[]> {
       if (dirent.isDirectory()) {
         entries.push({ name: dirent.name, path: relative, kind: "directory", editable: false, children: await walk(absolute, relative) });
       } else if (dirent.isFile()) {
-        entries.push({ name: dirent.name, path: relative, kind: "file", editable: EDITABLE.has(path.extname(dirent.name).toLowerCase()) });
+        const fileStat = await stat(absolute);
+        entries.push({ name: dirent.name, path: relative, kind: "file", editable: EDITABLE.has(path.extname(dirent.name).toLowerCase()), modifiedAt: fileStat.mtimeMs });
       }
     }
     return entries.sort((a, b) => a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "directory" ? -1 : 1);
@@ -70,32 +71,3 @@ export async function deleteWorkspaceEntry(root: string, relativePath: string): 
   const absolute = await resolveExistingPath(root, relativePath);
   await rm(absolute, { recursive: true });
 }
-
-export const STARTER = String.raw`\documentclass[10pt,letterpaper]{article}
-\usepackage[margin=0.65in]{geometry}
-\usepackage[hidelinks]{hyperref}
-\usepackage{enumitem}
-\setlist[itemize]{leftmargin=*,nosep}
-\pagestyle{empty}
-
-\begin{document}
-\begin{center}
-  {\LARGE \textbf{Your Name}}\\[4pt]
-  \href{mailto:you@example.com}{you@example.com} \quad
-  (555) 555-5555 \quad City, State
-\end{center}
-
-\section*{Experience}
-\textbf{Role} \hfill Company \hfill 2024--Present
-\begin{itemize}
-  \item Describe a measurable result and the work that produced it.
-  \item Keep each bullet concise, specific, and outcome-oriented.
-\end{itemize}
-
-\section*{Education}
-\textbf{Degree} \hfill University \hfill 2024
-
-\section*{Skills}
-LaTeX, writing, and the tools relevant to your work.
-\end{document}
-`;
