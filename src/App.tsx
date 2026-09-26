@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircleIcon, BracesIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, Download06Icon, FileCodeIcon, FileStarIcon, PencilEdit01Icon, TriangleAlertIcon } from "@hugeicons/core-free-icons";
+import { AlertCircleIcon, BracesIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, Download06Icon, FileCodeIcon, PencilEdit01Icon, TriangleAlertIcon } from "@hugeicons/core-free-icons";
 import { ChevronDown } from "lucide-react";
 import type { CompileResult, CompileStatus, Diagnostic, WorkspaceEntry, WorkspaceInfo } from "../shared/types";
 import { api } from "./api";
@@ -15,9 +15,9 @@ import { Menu, MenuItem, MenuPopup, MenuTrigger } from "./components/ui/menu";
 import { AppIcon } from "./components/AppIcon";
 import { Sidebar, SidebarInset, SidebarProvider } from "./components/ui/sidebar";
 
-function firstTex(entries: WorkspaceEntry[], preferred?: string | null): string | undefined {
+function firstTex(entries: WorkspaceEntry[]): string | undefined {
   const files = entries.flatMap((entry): WorkspaceEntry[] => entry.kind === "directory" ? flatten(entry.children ?? []) : [entry]);
-  return files.find((entry) => entry.editable && entry.path === preferred)?.path ?? files.find((entry) => entry.path === "resume.tex")?.path ?? files.find((entry) => entry.editable)?.path;
+  return files.find((entry) => entry.path === "resume.tex")?.path ?? files.find((entry) => entry.editable)?.path;
 }
 
 function flatten(entries: WorkspaceEntry[]): WorkspaceEntry[] {
@@ -62,7 +62,6 @@ export function App() {
   const [explorerOpen, setExplorerOpen] = useState(true);
   const [editorWidth, setEditorWidth] = useState(50);
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
-  const [defaultFile, setDefaultFile] = useState(() => window.localStorage.getItem("restex-default-document"));
   const [pinnedResumes, setPinnedResumes] = useState(savedPinnedResumes);
   const [documentDialog, setDocumentDialog] = useState<"create" | "rename" | null>(null);
   const [documentTarget, setDocumentTarget] = useState<string>();
@@ -83,7 +82,7 @@ export function App() {
       setWorkspace(info);
       if (!info.tectonicAvailable) setStatus("unavailable");
       if (selectDefault && !activeRef.current) {
-        const next = firstTex(info.entries, window.localStorage.getItem("restex-default-document"));
+        const next = firstTex(info.entries);
         if (next) await openFile(next);
       }
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not load workspace."); }
@@ -152,12 +151,6 @@ export function App() {
   }, [loadWorkspace]);
 
   useEffect(() => {
-    if (!activeFile || source === savedSource || status === "unavailable") return;
-    const timer = window.setTimeout(() => void compile(true), 550);
-    return () => window.clearTimeout(timer);
-  }, [source, activeFile, savedSource, compile, status]);
-
-  useEffect(() => {
     if (!activeFile || workspace?.tectonicAvailable !== true) return;
     const timer = window.setTimeout(() => void compile(false), 0);
     return () => window.clearTimeout(timer);
@@ -220,10 +213,6 @@ export function App() {
     const to = [parentPath(renameFrom), filename].filter(Boolean).join("/");
     try {
       await api.renameEntry(renameFrom, to);
-      if (defaultFile === renameFrom) {
-        window.localStorage.setItem("restex-default-document", to);
-        setDefaultFile(to);
-      }
       setPinnedResumes((paths) => paths.map((path) => path === renameFrom ? to : path));
       await loadWorkspace(false);
       if (activeFile === renameFrom) {
@@ -240,10 +229,6 @@ export function App() {
     const path = deleteTarget.path;
     try {
       await api.deleteEntry(path);
-      if (defaultFile === path) {
-        window.localStorage.removeItem("restex-default-document");
-        setDefaultFile(null);
-      }
       setPinnedResumes((paths) => paths.filter((pinnedPath) => pinnedPath !== path));
       if (activeFile === path) {
         setActiveFile(undefined);
@@ -258,11 +243,14 @@ export function App() {
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not delete resume."); }
   };
 
-  const makeActiveFileDefault = () => {
+  const makeSourceDefaultTemplate = async () => {
     if (!activeFile) return;
-    window.localStorage.setItem("restex-default-document", activeFile);
-    setDefaultFile(activeFile);
-    setNotice(`${documentName(activeFile)} will open by default.`);
+    try {
+      await api.setDefaultTemplate(sourceRef.current);
+      setNotice("The system default template now matches the current editor contents.");
+    } catch {
+      setNotice("Could not update the system default template.");
+    }
   };
 
   const togglePinnedResume = (path: string) => {
@@ -294,7 +282,7 @@ export function App() {
             <MenuTrigger render={<Button className="text-lg font-medium" variant="ghost" size="sm" />}><span>{documentName(activeFile)}</span><ChevronDown size={13} /></MenuTrigger>
             <MenuPopup className="min-w-45" align="center">
               <MenuItem onClick={() => openDocumentDialog("rename")}><AppIcon icon={PencilEdit01Icon} />Rename</MenuItem>
-              <MenuItem onClick={makeActiveFileDefault} disabled={defaultFile === activeFile}><AppIcon icon={FileStarIcon} />Make default</MenuItem>
+              <MenuItem onClick={() => void makeSourceDefaultTemplate()}><AppIcon icon={FileCodeIcon} />Set as default template</MenuItem>
               <MenuItem onClick={() => void downloadPdf()} disabled={status === "unavailable"}><AppIcon icon={Download06Icon} />Download PDF</MenuItem>
             </MenuPopup>
           </Menu>

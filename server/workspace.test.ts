@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createWorkspaceEntry, deleteWorkspaceEntry, readTree, renameWorkspaceEntry, writeWorkspaceFile } from "./workspace.js";
+import { createWorkspaceEntry, deleteWorkspaceEntry, readDefaultTemplate, readTree, renameWorkspaceEntry, writeDefaultTemplate, writeWorkspaceFile } from "./workspace.js";
 
 const created: string[] = [];
 afterEach(async () => Promise.all(created.splice(0).map((folder) => rm(folder, { recursive: true, force: true }))));
@@ -23,5 +23,16 @@ describe("workspace operations", () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "resume-tex-test-")); created.push(root);
     await writeFile(path.join(root, "photo.png"), "not really an image");
     await expect(writeWorkspaceFile(root, "photo.png", "changed")).rejects.toThrow("Only .tex files");
+  });
+
+  it("persists an exact default template without exposing it in the workspace", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "resume-tex-test-")); created.push(root);
+    const template = "\\documentclass{article}\n% exact template\n\\begin{document}\n\\end{document}\n";
+
+    expect(await readDefaultTemplate(root)).toBeUndefined();
+    await writeDefaultTemplate(root, template);
+
+    expect(await readDefaultTemplate(root)).toBe(template);
+    expect(await readTree(root)).toEqual([]);
   });
 });

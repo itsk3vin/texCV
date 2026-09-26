@@ -3,7 +3,8 @@ import path from "node:path";
 import type { WorkspaceEntry } from "../shared/types.js";
 import { resolveExistingPath, resolveNewPath, WorkspacePathError } from "./path-security.js";
 
-const HIDDEN = new Set([".git", "node_modules", "dist", "dist-server", ".DS_Store"]);
+const DEFAULT_TEMPLATE_PATH = ".restex-template.tex";
+const HIDDEN = new Set([".git", "node_modules", "dist", "dist-server", ".DS_Store", DEFAULT_TEMPLATE_PATH]);
 const EDITABLE = new Set([".tex"]);
 
 export async function readTree(root: string): Promise<WorkspaceEntry[]> {
@@ -39,6 +40,25 @@ export async function writeWorkspaceFile(root: string, relativePath: string, con
   const absolute = await resolveExistingPath(root, relativePath);
   if (!EDITABLE.has(path.extname(absolute).toLowerCase())) throw new WorkspacePathError("Only .tex files can be edited.");
   await writeFile(absolute, content, "utf8");
+}
+
+export async function readDefaultTemplate(root: string): Promise<string | undefined> {
+  try {
+    return await readFile(await resolveExistingPath(root, DEFAULT_TEMPLATE_PATH), "utf8");
+  } catch (error) {
+    if (error instanceof WorkspacePathError && error.message === "The requested path does not exist.") return undefined;
+    throw error;
+  }
+}
+
+export async function writeDefaultTemplate(root: string, content: unknown): Promise<void> {
+  if (typeof content !== "string") throw new WorkspacePathError("Template content must be text.");
+  try {
+    await writeFile(await resolveExistingPath(root, DEFAULT_TEMPLATE_PATH), content, "utf8");
+  } catch (error) {
+    if (!(error instanceof WorkspacePathError) || error.message !== "The requested path does not exist.") throw error;
+    await writeFile(await resolveNewPath(root, DEFAULT_TEMPLATE_PATH), content, { encoding: "utf8", flag: "wx" });
+  }
 }
 
 export async function createWorkspaceEntry(root: string, relativePath: string, kind: unknown): Promise<void> {

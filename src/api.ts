@@ -28,5 +28,6 @@ export const api = {
   renameEntry: (from: string, to: string) => request("/api/entry", json("PATCH", { from, to })),
   deleteEntry: (path: string) => request<void>(`/api/entry?path=${encodeURIComponent(path)}`, { method: "DELETE" }),
   createStarter: (path?: string) => request<{ path: string }>("/api/starter", json("POST", path ? { path } : {})),
+  setDefaultTemplate: (content: string) => request<void>("/api/template", json("PUT", { content })),
   compile: (entryFile: string) => request<CompileResult>("/api/compile", json("POST", { entryFile })),
 };

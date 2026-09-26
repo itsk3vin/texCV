@@ -10,9 +10,11 @@ import { STARTER } from "./starter.js";
 import {
   createWorkspaceEntry,
   deleteWorkspaceEntry,
+  readDefaultTemplate,
   readTree,
   readWorkspaceFile,
   renameWorkspaceEntry,
+  writeDefaultTemplate,
   writeWorkspaceFile,
 } from "./workspace.js";
 
@@ -83,8 +85,13 @@ export async function createApp(options: AppOptions): Promise<{ app: Express; cl
   app.post("/api/starter", asyncRoute(async (request, response) => {
     const starterPath = String(request.body?.path ?? "resume.tex");
     await createWorkspaceEntry(options.root, starterPath, "file");
-    await writeWorkspaceFile(options.root, starterPath, STARTER);
+    await writeWorkspaceFile(options.root, starterPath, (await readDefaultTemplate(options.root)) ?? STARTER);
     response.status(201).json({ path: starterPath });
+  }));
+
+  app.put("/api/template", asyncRoute(async (request, response) => {
+    await writeDefaultTemplate(options.root, request.body?.content);
+    response.status(204).end();
   }));
 
   app.post("/api/compile", asyncRoute(async (request, response) => {
