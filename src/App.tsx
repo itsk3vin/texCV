@@ -274,7 +274,7 @@ export function App() {
     <div className={`grid h-dvh w-full min-h-0 min-w-0 grid-rows-[38px_minmax(0,1fr)] overflow-hidden bg-(--bg) ${theme}`}>
       <div className="window-titlebar w-full min-w-0 border-b border-border bg-(--surface-header)" aria-label="Window controls" />
     <SidebarProvider open={explorerOpen} onOpenChange={setExplorerOpen} className="relative isolate h-full w-full min-h-0 min-w-0 overflow-hidden bg-(--bg) [&_svg]:[stroke-width:2]" style={{ "--sidebar-width": "15rem" } as React.CSSProperties}>
-      <Sidebar collapsible="icon" className="border-border bg-(--surface-sidebar)">
+      <Sidebar collapsible="icon" className="border-border bg-(--surface-sidebar)" aria-label="File explorer">
         <FileExplorer entries={workspace?.entries ?? []} active={activeFile} pinnedPaths={pinnedResumes} onTogglePin={togglePinnedResume} onSelect={(entry) => setSelected({ path: entry.path, kind: entry.kind })} onOpen={(entry) => void openFile(entry.path)} onCreate={() => openDocumentDialog("create")} onRename={(entry) => openDocumentDialog("rename", entry.path)} onDelete={setDeleteTarget} theme={theme} onToggleTheme={() => setTheme((value) => value === "dark" ? "light" : "dark")} />
       </Sidebar>
       <SidebarInset className="h-full min-h-0 min-w-0 overflow-hidden bg-(--bg)">

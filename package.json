@@ -4,20 +4,15 @@
   "description": "A local-only LaTeX resume editor with a live PDF preview",
   "type": "module",
   "main": "dist-server/electron/main.js",
-  "bin": {
-    "texcv": "dist-server/cli.js"
-  },
   "files": [
     "dist",
     "dist-server"
   ],
   "scripts": {
-    "dev": "tsx server/cli.ts --dev --no-open",
-    "build": "tsc -p tsconfig.json && vite build && tsc -p tsconfig.server.json && node scripts/add-shebang.mjs",
+    "build": "rm -rf dist-server && tsc -p tsconfig.json && vite build && tsc -p tsconfig.server.json",
     "desktop": "npm run build && electron .",
     "pack:mac": "npm run build && electron-builder --mac --dir",
     "dist:mac": "npm run build && electron-builder --mac dmg zip",
-    "start": "node dist-server/cli.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
@@ -40,7 +35,6 @@
     "clsx": "^2.1.1",
     "express": "^5.1.0",
     "lucide-react": "^1.48.0",
-    "open": "^10.1.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.3.289",
     "react": "^19.1.1",

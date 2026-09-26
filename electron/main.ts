@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, Menu, shell } from "electron";
-import { existsSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -26,9 +26,21 @@ function addCommonExecutablePaths() {
     .join(path.delimiter);
 }
 
-function workspaceArgument(): string | undefined {
-  const args = process.argv.slice(1);
-  return [...args].reverse().find((argument) => !argument.startsWith("-") && existsSync(argument));
+function settingsPath() {
+  return path.join(app.getPath("userData"), "settings.json");
+}
+
+async function lastWorkspace(): Promise<string | undefined> {
+  try {
+    const settings = JSON.parse(await readFile(settingsPath(), "utf8")) as { lastWorkspace?: unknown };
+    return typeof settings.lastWorkspace === "string" ? settings.lastWorkspace : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function rememberWorkspace(root: string) {
+  await writeFile(settingsPath(), JSON.stringify({ lastWorkspace: root }, null, 2), "utf8");
 }
 
 async function chooseWorkspace(): Promise<string | undefined> {
@@ -71,6 +83,7 @@ async function openWorkspace(folder: string) {
   if (!address || typeof address === "string") throw new Error("Could not start the local TexCV server.");
   await mainWindow?.loadURL(`http://127.0.0.1:${address.port}`);
   mainWindow?.setTitle(`TexCV — ${path.basename(root)}`);
+  await rememberWorkspace(root);
 }
 
 async function promptForWorkspace() {
@@ -144,7 +157,7 @@ async function createWindow() {
   });
   mainWindow.on("closed", () => { mainWindow = undefined; });
 
-  const initial = workspaceArgument();
+  const initial = await lastWorkspace();
   if (initial) {
     try {
       await openWorkspace(initial);
