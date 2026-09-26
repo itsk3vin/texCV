@@ -34,6 +34,17 @@ function documentName(value: string) {
   return value.split("/").pop()?.replace(/\.tex$/i, "") ?? value;
 }
 
+const PINNED_RESUMES_KEY = "texcv-pinned-resumes";
+
+function savedPinnedResumes(): string[] {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(PINNED_RESUMES_KEY) ?? "[]");
+    return Array.isArray(value) ? value.filter((path): path is string => typeof path === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export function App() {
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = window.localStorage.getItem("restex-theme");
@@ -52,6 +63,7 @@ export function App() {
   const [editorWidth, setEditorWidth] = useState(50);
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
   const [defaultFile, setDefaultFile] = useState(() => window.localStorage.getItem("restex-default-document"));
+  const [pinnedResumes, setPinnedResumes] = useState(savedPinnedResumes);
   const [documentDialog, setDocumentDialog] = useState<"create" | "rename" | null>(null);
   const [documentTarget, setDocumentTarget] = useState<string>();
   const [deleteTarget, setDeleteTarget] = useState<WorkspaceEntry>();
@@ -125,6 +137,10 @@ export function App() {
     document.documentElement.classList.toggle("light", theme === "light");
     window.localStorage.setItem("restex-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    window.localStorage.setItem(PINNED_RESUMES_KEY, JSON.stringify(pinnedResumes));
+  }, [pinnedResumes]);
 
   useEffect(() => {
     const events = new EventSource("/api/events");
@@ -208,6 +224,7 @@ export function App() {
         window.localStorage.setItem("restex-default-document", to);
         setDefaultFile(to);
       }
+      setPinnedResumes((paths) => paths.map((path) => path === renameFrom ? to : path));
       await loadWorkspace(false);
       if (activeFile === renameFrom) {
         setActiveFile(undefined);
@@ -227,6 +244,7 @@ export function App() {
         window.localStorage.removeItem("restex-default-document");
         setDefaultFile(null);
       }
+      setPinnedResumes((paths) => paths.filter((pinnedPath) => pinnedPath !== path));
       if (activeFile === path) {
         setActiveFile(undefined);
         setSelected(undefined);
@@ -247,6 +265,12 @@ export function App() {
     setNotice(`${documentName(activeFile)} will open by default.`);
   };
 
+  const togglePinnedResume = (path: string) => {
+    setPinnedResumes((paths) => paths.includes(path)
+      ? paths.filter((pinnedPath) => pinnedPath !== path)
+      : [path, ...paths]);
+  };
+
   const beginResize = (event: React.MouseEvent) => {
     event.preventDefault();
     const startX = event.clientX, start = editorWidth;
@@ -261,7 +285,7 @@ export function App() {
   return (
     <SidebarProvider open={explorerOpen} onOpenChange={setExplorerOpen} className={`relative isolate h-dvh min-h-0 overflow-hidden bg-(--bg) [&_svg]:[stroke-width:2] ${theme}`} style={{ "--sidebar-width": "15rem" } as React.CSSProperties}>
       <Sidebar collapsible="icon" className="border-border bg-(--surface-sidebar)">
-        <FileExplorer entries={workspace?.entries ?? []} active={activeFile} onSelect={(entry) => setSelected({ path: entry.path, kind: entry.kind })} onOpen={(entry) => void openFile(entry.path)} onCreate={() => openDocumentDialog("create")} onRename={(entry) => openDocumentDialog("rename", entry.path)} onDelete={setDeleteTarget} theme={theme} onToggleTheme={() => setTheme((value) => value === "dark" ? "light" : "dark")} />
+        <FileExplorer entries={workspace?.entries ?? []} active={activeFile} pinnedPaths={pinnedResumes} onTogglePin={togglePinnedResume} onSelect={(entry) => setSelected({ path: entry.path, kind: entry.kind })} onOpen={(entry) => void openFile(entry.path)} onCreate={() => openDocumentDialog("create")} onRename={(entry) => openDocumentDialog("rename", entry.path)} onDelete={setDeleteTarget} theme={theme} onToggleTheme={() => setTheme((value) => value === "dark" ? "light" : "dark")} />
       </Sidebar>
       <SidebarInset className="h-full min-h-0 min-w-0 overflow-hidden bg-(--bg)">
         <header className="flex h-12 shrink-0 items-center justify-center border-b border-border bg-(--surface-header)">

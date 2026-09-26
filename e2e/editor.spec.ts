@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("opens an existing resume in the editor workspace", async ({ page }) => {
   await page.goto("/");
-  await expect(page).toHaveTitle("ResTeX");
+  await expect(page).toHaveTitle("TexCV");
   await expect(page.getByRole("button", { name: "resume.tex" })).toBeVisible();
   await expect(page.getByLabel("Editing resume.tex")).toBeVisible();
   await expect(page.getByLabel("PDF preview")).toBeVisible();

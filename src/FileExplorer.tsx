@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Delete02Icon, LicenseDraftIcon, PencilEdit01Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import { Delete02Icon, File02Icon, LicenseDraftIcon, PencilEdit01Icon, Pin02Icon, PinOffIcon, Search01Icon } from "@hugeicons/core-free-icons";
 import { Moon, Sun } from "lucide-react";
 import type { WorkspaceEntry } from "../shared/types";
 import { Command, CommandDialog, CommandDialogPopup, CommandEmpty, CommandGroup, CommandGroupLabel, CommandInput, CommandItem, CommandList, CommandPanel } from "./components/ui/command";
@@ -11,6 +11,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./components/ui/tooltip
 type Props = {
   entries: WorkspaceEntry[];
   active?: string;
+  pinnedPaths: string[];
+  onTogglePin: (path: string) => void;
   onOpen: (entry: WorkspaceEntry) => void;
   onSelect: (entry: WorkspaceEntry) => void;
   onCreate: () => void;
@@ -36,10 +38,11 @@ function updatedLabel(modifiedAt?: number) {
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-export function FileExplorer({ entries, active, onOpen, onSelect, onCreate, onRename, onDelete, theme, onToggleTheme }: Props) {
+export function FileExplorer({ entries, active, pinnedPaths, onTogglePin, onOpen, onSelect, onCreate, onRename, onDelete, theme, onToggleTheme }: Props) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const pinned = useMemo(() => new Set(pinnedPaths), [pinnedPaths]);
   const allFiles = useMemo(() => flattenFiles(entries)
-    .sort((a, b) => (b.modifiedAt ?? 0) - (a.modifiedAt ?? 0)), [entries]);
+    .sort((a, b) => Number(pinned.has(b.path)) - Number(pinned.has(a.path)) || (b.modifiedAt ?? 0) - (a.modifiedAt ?? 0)), [entries, pinned]);
 
   return (
     <>
@@ -79,11 +82,13 @@ export function FileExplorer({ entries, active, onOpen, onSelect, onCreate, onRe
                 <SidebarMenuItem key={entry.path}>
                   <ContextMenu>
                     <ContextMenuTrigger render={<SidebarMenuButton className="resume-row" size="sm" isActive={active === entry.path} tooltip={displayName(entry)} onClick={() => { onSelect(entry); onOpen(entry); }} title={entry.path} />}>
-                      <AppIcon icon={LicenseDraftIcon} />
+                      <AppIcon icon={File02Icon} />
                       <span className="min-w-0 flex-1 truncate">{displayName(entry)}</span>
+                      {pinned.has(entry.path) ? <AppIcon icon={Pin02Icon} className="shrink-0 text-(--text-subtle) group-data-[collapsible=icon]:hidden" aria-label="Pinned" /> : null}
                       <time className="ml-auto shrink-0 text-[.625rem] text-(--text-faint) tabular-nums group-data-[collapsible=icon]:hidden" dateTime={entry.modifiedAt ? new Date(entry.modifiedAt).toISOString() : undefined}>{updatedLabel(entry.modifiedAt)}</time>
                     </ContextMenuTrigger>
                     <ContextMenuPopup align="start">
+                      <ContextMenuItem onClick={() => onTogglePin(entry.path)}><AppIcon icon={pinned.has(entry.path) ? PinOffIcon : Pin02Icon} />{pinned.has(entry.path) ? "Unpin from top" : "Pin to top"}</ContextMenuItem>
                       <ContextMenuItem onClick={() => onRename(entry)}><AppIcon icon={PencilEdit01Icon} />Rename</ContextMenuItem>
                       <ContextMenuItem variant="destructive" onClick={() => onDelete(entry)}><AppIcon icon={Delete02Icon} />Delete</ContextMenuItem>
                     </ContextMenuPopup>
@@ -116,7 +121,7 @@ export function FileExplorer({ entries, active, onOpen, onSelect, onCreate, onRe
               <CommandGroup>
                 <CommandGroupLabel className="px-4">Resumes</CommandGroupLabel>
                 <CommandList>
-                  {(entry: WorkspaceEntry) => <CommandItem key={entry.path} value={entry} onClick={() => { onSelect(entry); onOpen(entry); setSearchOpen(false); }}><AppIcon icon={LicenseDraftIcon} />{displayName(entry)}</CommandItem>}
+                  {(entry: WorkspaceEntry) => <CommandItem key={entry.path} value={entry} onClick={() => { onSelect(entry); onOpen(entry); setSearchOpen(false); }}><AppIcon icon={File02Icon} />{displayName(entry)}</CommandItem>}
                 </CommandList>
               </CommandGroup>
             </CommandPanel>
