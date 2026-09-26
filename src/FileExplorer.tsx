@@ -5,7 +5,7 @@ import type { WorkspaceEntry } from "../shared/types";
 import { Command, CommandDialog, CommandDialogPopup, CommandEmpty, CommandGroup, CommandGroupLabel, CommandInput, CommandItem, CommandList, CommandPanel } from "./components/ui/command";
 import { ContextMenu, ContextMenuItem, ContextMenuPopup, ContextMenuTrigger } from "./components/ui/context-menu";
 import { AppIcon } from "./components/AppIcon";
-import { SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "./components/ui/sidebar";
+import { SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "./components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./components/ui/tooltip";
 
 type Props = {
@@ -47,8 +47,14 @@ export function FileExplorer({ entries, active, pinnedPaths, onTogglePin, onOpen
   return (
     <>
       <SidebarHeader className="gap-1.5 p-2">
-        <div className="flex h-8 items-center px-1.5">
+        <div className="flex h-8 items-center justify-between px-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <span className="font-bold text-[1.05rem] tracking-[-.02em] [font-family:'DM_Sans',ui-sans-serif,sans-serif] group-data-[collapsible=icon]:hidden">TexCV</span>
+          <Tooltip>
+            <TooltipTrigger render={<SidebarMenuButton className="size-7 shrink-0 justify-center" size="sm" aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} onClick={onToggleTheme} />}>
+              {theme === "dark" ? <Sun /> : <Moon />}
+            </TooltipTrigger>
+            <TooltipContent side="right">{theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}</TooltipContent>
+          </Tooltip>
         </div>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -100,18 +106,6 @@ export function FileExplorer({ entries, active, pinnedPaths, onTogglePin, onOpen
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <Tooltip>
-              <TooltipTrigger render={<SidebarMenuButton className="w-8 justify-center" aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} onClick={onToggleTheme} />}>
-                {theme === "dark" ? <Sun /> : <Moon />}
-              </TooltipTrigger>
-              <TooltipContent side="right">{theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}</TooltipContent>
-            </Tooltip>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
       <CommandDialog open={searchOpen} onOpenChange={setSearchOpen}>
         <CommandDialogPopup>
           <Command items={allFiles} itemToStringValue={(entry) => displayName(entry as WorkspaceEntry)}>
