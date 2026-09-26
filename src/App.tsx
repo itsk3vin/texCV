@@ -47,7 +47,7 @@ function savedPinnedResumes(): string[] {
 
 export function App() {
   const [theme, setTheme] = useState<"dark" | "light">(() => {
-    const saved = window.localStorage.getItem("restex-theme");
+    const saved = window.localStorage.getItem("texcv-theme");
     return saved === "light" || saved === "dark" ? saved : "dark";
   });
   const [workspace, setWorkspace] = useState<WorkspaceInfo>();
@@ -134,7 +134,7 @@ export function App() {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
     document.documentElement.classList.toggle("light", theme === "light");
-    window.localStorage.setItem("restex-theme", theme);
+    window.localStorage.setItem("texcv-theme", theme);
   }, [theme]);
 
   useEffect(() => {
@@ -271,7 +271,9 @@ export function App() {
   const hasUnsaved = source !== savedSource;
 
   return (
-    <SidebarProvider open={explorerOpen} onOpenChange={setExplorerOpen} className={`relative isolate h-dvh min-h-0 overflow-hidden bg-(--bg) [&_svg]:[stroke-width:2] ${theme}`} style={{ "--sidebar-width": "15rem" } as React.CSSProperties}>
+    <div className={`grid h-dvh w-full min-h-0 min-w-0 grid-rows-[38px_minmax(0,1fr)] overflow-hidden bg-(--bg) ${theme}`}>
+      <div className="window-titlebar w-full min-w-0 border-b border-border bg-(--surface-header)" aria-label="Window controls" />
+    <SidebarProvider open={explorerOpen} onOpenChange={setExplorerOpen} className="relative isolate h-full w-full min-h-0 min-w-0 overflow-hidden bg-(--bg) [&_svg]:[stroke-width:2]" style={{ "--sidebar-width": "15rem" } as React.CSSProperties}>
       <Sidebar collapsible="icon" className="border-border bg-(--surface-sidebar)">
         <FileExplorer entries={workspace?.entries ?? []} active={activeFile} pinnedPaths={pinnedResumes} onTogglePin={togglePinnedResume} onSelect={(entry) => setSelected({ path: entry.path, kind: entry.kind })} onOpen={(entry) => void openFile(entry.path)} onCreate={() => openDocumentDialog("create")} onRename={(entry) => openDocumentDialog("rename", entry.path)} onDelete={setDeleteTarget} theme={theme} onToggleTheme={() => setTheme((value) => value === "dark" ? "light" : "dark")} />
       </Sidebar>
@@ -346,5 +348,6 @@ export function App() {
         </DialogPopup>
       </Dialog>
     </SidebarProvider>
+    </div>
   );
 }

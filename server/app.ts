@@ -39,7 +39,7 @@ export async function createApp(options: AppOptions): Promise<{ app: Express; cl
     const remote = request.socket.remoteAddress;
     const host = request.hostname.replace(/^\[|\]$/g, "");
     if ((remote && !["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(remote)) || !["127.0.0.1", "localhost", "::1"].includes(host)) {
-      response.status(403).json({ error: "ResTeX is available only from this computer." });
+      response.status(403).json({ error: "TexCV is available only from this computer." });
       return;
     }
     next();

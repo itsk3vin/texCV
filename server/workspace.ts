@@ -3,7 +3,7 @@ import path from "node:path";
 import type { WorkspaceEntry } from "../shared/types.js";
 import { resolveExistingPath, resolveNewPath, WorkspacePathError } from "./path-security.js";
 
-const DEFAULT_TEMPLATE_PATH = ".restex-template.tex";
+const DEFAULT_TEMPLATE_PATH = ".texcv-template.tex";
 const HIDDEN = new Set([".git", "node_modules", "dist", "dist-server", ".DS_Store", DEFAULT_TEMPLATE_PATH]);
 const EDITABLE = new Set([".tex"]);
 

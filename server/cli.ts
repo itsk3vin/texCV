@@ -7,9 +7,9 @@ import { createApp } from "./app.js";
 import { assertDirectory } from "./path-security.js";
 
 const VERSION = "0.1.0";
-const HELP = `ResTeX ${VERSION}
+const HELP = `TexCV ${VERSION}
 
-Usage: tex-editor [folder] [options]
+Usage: texcv [folder] [options]
 
 Options:
   --port <number>  Use a specific local port
@@ -54,7 +54,7 @@ async function main() {
     const address = server.address();
     const port = typeof address === "object" && address ? address.port : options.port;
     const url = `http://127.0.0.1:${port}`;
-    console.log(`ResTeX is ready at ${url}`);
+    console.log(`TexCV is ready at ${url}`);
     console.log(`Workspace: ${root}`);
     if (options.shouldOpen) await open(url);
   });
@@ -68,6 +68,6 @@ async function main() {
 
 main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : error);
-  console.error("Run tex-editor --help for usage.");
+  console.error("Run texcv --help for usage.");
   process.exit(1);
 });
