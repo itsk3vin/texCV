@@ -5,6 +5,7 @@
   "type": "module",
   "main": "dist-server/electron/main.js",
   "files": [
+    ".texcv-template.tex",
     "dist",
     "dist-server"
   ],
@@ -68,6 +69,7 @@
       "output": "release"
     },
     "files": [
+      ".texcv-template.tex",
       "dist/**/*",
       "dist-server/**/*",
       "package.json"
