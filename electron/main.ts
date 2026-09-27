@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, Menu, shell } from "electron";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -28,6 +28,16 @@ function addCommonExecutablePaths() {
 
 function settingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
+}
+
+function defaultWorkspacePath() {
+  return path.join(app.getPath("documents"), "TexCV");
+}
+
+async function ensureDefaultWorkspace() {
+  const root = defaultWorkspacePath();
+  await mkdir(root, { recursive: true });
+  return root;
 }
 
 async function lastWorkspace(): Promise<string | undefined> {
@@ -162,19 +172,12 @@ async function createWindow() {
     try {
       await openWorkspace(initial);
       return;
-    } catch (error) {
-      const options: Electron.MessageBoxOptions = {
-        type: "error",
-        title: "Could not open workspace",
-        message: error instanceof Error ? error.message : "The workspace could not be opened.",
-      };
-      if (mainWindow) await dialog.showMessageBox(mainWindow, options);
-      else await dialog.showMessageBox(options);
+    } catch {
+      // If a previously selected folder was moved or deleted, fall back to the
+      // app-managed document folder instead of interrupting launch.
     }
   }
-  const selected = await chooseWorkspace();
-  if (selected) await openWorkspace(selected);
-  else mainWindow.close();
+  await openWorkspace(await ensureDefaultWorkspace());
 }
 
 addCommonExecutablePaths();

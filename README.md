@@ -19,9 +19,11 @@ npm install
 npm run desktop
 ```
 
-TexCV reopens the last workspace when launched. Use File → Open Folder to choose a
-different workspace. Create an unpacked macOS application with `npm run pack:mac`,
-or create `.dmg` and `.zip` release artifacts with `npm run dist:mac`.
+On first launch, TexCV creates and opens `~/Documents/TexCV`. It reopens the last
+workspace after that; if the folder is no longer available, it falls back to the
+managed Documents folder. Use File → Open Folder to choose a different workspace.
+Create an unpacked macOS application with `npm run pack:mac`, or create `.dmg` and
+`.zip` release artifacts with `npm run dist:mac`.
 
 For public distribution, install a Developer ID Application certificate in the
 macOS keychain and provide Apple notarization credentials through either
