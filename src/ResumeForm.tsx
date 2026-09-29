@@ -1,6 +1,8 @@
-import { Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Plus, Trash2, X } from "lucide-react";
 import type { ResumeData, ResumeEntry } from "./resume-document";
 import { Accordion, AccordionItem, AccordionPanel, AccordionTrigger } from "./components/ui/accordion";
+import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 
@@ -8,6 +10,24 @@ type Props = { value: ResumeData; onChange: (value: ResumeData) => void };
 type EntryKey = "education" | "experience" | "projects";
 
 const blankEntry = (): ResumeEntry => ({ id: crypto.randomUUID(), title: "", subtitle: "", location: "", date: "", bullets: [""] });
+
+function SkillEditor({ category, value, onCategoryChange, onValueChange }: { category: string; value: string; onCategoryChange: (value: string) => void; onValueChange: (value: string) => void }) {
+  const [draft, setDraft] = useState("");
+  const skills = value.split(",").map((skill) => skill.trim()).filter(Boolean);
+  const addSkill = () => {
+    const next = draft.trim().replace(/,$/, "");
+    if (!next) return;
+    if (!skills.some((skill) => skill.toLowerCase() === next.toLowerCase())) onValueChange([...skills, next].join(", "));
+    setDraft("");
+  };
+  const removeSkill = (index: number) => onValueChange(skills.filter((_, skillIndex) => skillIndex !== index).join(", "));
+
+  return <div className="skill-editor">
+    <div className="skill-editor-row"><label><span>Title</span><Input aria-label="Skill group title" value={category} placeholder="Languages" onChange={(event) => onCategoryChange(event.target.value)} /></label><div aria-hidden="true" /></div>
+    <div className="skill-editor-row"><label><span>Add a skill</span><Input aria-label="New skill" value={draft} placeholder="TypeScript" onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === ",") { event.preventDefault(); addSkill(); } }} /></label><div className="skill-add-action"><Button size="sm" variant="outline" onClick={addSkill} disabled={!draft.trim()}><Plus size={13} /> Add</Button></div></div>
+    {skills.length ? <div className="skill-badges" aria-label="Skills">{skills.map((skill, index) => <Badge key={`${skill}-${index}`} variant="secondary" className="skill-badge"><span>{skill}</span><button type="button" aria-label={`Remove ${skill}`} onClick={() => removeSkill(index)}><X size={11} /></button></Badge>)}</div> : <p className="skill-empty">Skills you add will appear here.</p>}
+  </div>;
+}
 
 export function ResumeForm({ value, onChange }: Props) {
   const setEntries = (key: EntryKey, entries: ResumeEntry[]) => onChange({ ...value, [key]: entries });
@@ -49,7 +69,7 @@ export function ResumeForm({ value, onChange }: Props) {
       <div className="resume-entry-list">{value.skills.length === 0 ? <button className="resume-empty" onClick={() => onChange({ ...value, skills: [{ id: crypto.randomUUID(), category: "", value: "" }] })}>Add your first skill group</button> : value.skills.map((skill, index) => <Accordion key={skill.id} defaultValue={skill.category ? [] : [skill.id]}>
         <AccordionItem className="resume-entry-accordion" value={skill.id}>
           <AccordionTrigger className="resume-entry-trigger"><span className="resume-entry-summary"><strong>{skill.category || "Untitled skill group"}</strong><small>{skill.value || "Click to edit"}</small></span></AccordionTrigger>
-          <AccordionPanel className="resume-entry-panel"><div className="resume-entry-toolbar"><Button size="xs" variant="ghost" onClick={() => onChange({ ...value, skills: value.skills.filter((_, i) => i !== index) })}><Trash2 size={13} /> Remove</Button></div><div className="skill-row"><Input aria-label="Skill category" value={skill.category} placeholder="Languages" onChange={(event) => onChange({ ...value, skills: value.skills.map((item, i) => i === index ? { ...item, category: event.target.value } : item) })} /><Input aria-label={`${skill.category || "Skill"} values`} value={skill.value} placeholder="TypeScript, Python, SQL" onChange={(event) => onChange({ ...value, skills: value.skills.map((item, i) => i === index ? { ...item, value: event.target.value } : item) })} /></div></AccordionPanel>
+          <AccordionPanel className="resume-entry-panel"><div className="resume-entry-toolbar"><Button size="xs" variant="ghost" onClick={() => onChange({ ...value, skills: value.skills.filter((_, i) => i !== index) })}><Trash2 size={13} /> Remove</Button></div><SkillEditor category={skill.category} value={skill.value} onCategoryChange={(category) => onChange({ ...value, skills: value.skills.map((item, i) => i === index ? { ...item, category } : item) })} onValueChange={(skillValue) => onChange({ ...value, skills: value.skills.map((item, i) => i === index ? { ...item, value: skillValue } : item) })} /></AccordionPanel>
         </AccordionItem>
       </Accordion>)}</div>
     </section>
