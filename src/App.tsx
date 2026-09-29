@@ -6,6 +6,8 @@ import { api } from "./api";
 import { Editor } from "./Editor";
 import { FileExplorer } from "./FileExplorer";
 import { PdfPreview } from "./PdfPreview";
+import { ResumeForm } from "./ResumeForm";
+import { parseResume, updateResumeSource, type ResumeData } from "./resume-document";
 import { Alert, AlertAction, AlertDescription } from "./components/ui/alert";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
@@ -54,6 +56,8 @@ export function App() {
   const [activeFile, setActiveFile] = useState<string>();
   const [selected, setSelected] = useState<{ path: string; kind: "file" | "directory" }>();
   const [source, setSource] = useState("");
+  const [resumeData, setResumeData] = useState<ResumeData>({ education: [], experience: [], projects: [], skills: [] });
+  const [editMode, setEditMode] = useState<"form" | "code">("form");
   const [savedSource, setSavedSource] = useState("");
   const [status, setStatus] = useState<CompileStatus>("idle");
   const [result, setResult] = useState<CompileResult>();
@@ -92,7 +96,7 @@ export function App() {
     if (activeRef.current === path) return;
     try {
       const content = await api.readFile(path);
-      setActiveFile(path); setSelected({ path, kind: "file" }); setSource(content); setSavedSource(content); setDiagnostics([]); setNotice(undefined);
+      setActiveFile(path); setSelected({ path, kind: "file" }); setSource(content); setSavedSource(content); setResumeData(parseResume(content)); setDiagnostics([]); setNotice(undefined);
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not open file."); }
   }, []);
 
@@ -155,6 +159,12 @@ export function App() {
     const timer = window.setTimeout(() => void compile(false), 0);
     return () => window.clearTimeout(timer);
   }, [activeFile, compile, workspace?.tectonicAvailable]);
+
+  useEffect(() => {
+    if (editMode !== "form" || !activeFile || source === savedSource || workspace?.tectonicAvailable !== true) return;
+    const timer = window.setTimeout(() => void compile(true), 700);
+    return () => window.clearTimeout(timer);
+  }, [activeFile, compile, editMode, savedSource, source, workspace?.tectonicAvailable]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -259,6 +269,16 @@ export function App() {
       : [path, ...paths]);
   };
 
+  const updateResume = (data: ResumeData) => {
+    setResumeData(data);
+    setSource((current) => updateResumeSource(current, data));
+  };
+
+  const showForm = () => {
+    setResumeData(parseResume(sourceRef.current));
+    setEditMode("form");
+  };
+
   const beginResize = (event: React.MouseEvent) => {
     event.preventDefault();
     const startX = event.clientX, start = editorWidth;
@@ -297,9 +317,9 @@ export function App() {
       <div className="grid min-h-0 flex-1 max-[900px]:grid-cols-1! max-[900px]:grid-rows-[minmax(45%,1fr)_minmax(45%,1fr)]" style={{ gridTemplateColumns: `minmax(320px, ${editorWidth}fr) 5px minmax(360px, ${100 - editorWidth}fr)` }}>
         <section className="flex min-h-0 min-w-0 flex-col bg-(--surface-editor) max-[900px]:col-span-full max-[900px]:border-b-4 max-[900px]:border-border">
           <div className="flex h-9.5 min-h-9.5 items-center gap-2 border-b border-border px-3 font-mono text-[.67rem] font-normal text-(--text-subtle) tracking-[.02em]">
-            {activeFile ? <><AppIcon icon={FileCodeIcon} size={14} /><span>{documentName(activeFile)}</span>{hasUnsaved ? <i className="size-1.5 rounded-full bg-(--editor-accent)" aria-label="Unsaved" /> : null}</> : <span>EDITOR</span>}
+            {activeFile ? <><AppIcon icon={editMode === "code" ? FileCodeIcon : PencilEdit01Icon} size={14} /><span>{editMode === "code" ? documentName(activeFile) : "RESUME BUILDER"}</span>{hasUnsaved ? <i className="size-1.5 rounded-full bg-(--editor-accent)" aria-label="Unsaved" /> : null}<div className="editor-mode-switch" role="group" aria-label="Editor mode"><button className={editMode === "form" ? "active" : ""} onClick={showForm}>Form</button><button className={editMode === "code" ? "active" : ""} onClick={() => setEditMode("code")}>LaTeX</button></div></> : <span>EDITOR</span>}
           </div>
-          {activeFile ? <Editor value={source} filePath={activeFile} onChange={setSource} onSave={() => void compile(true)} onCompile={() => void compile(true)} onCursor={(line, column) => setCursor({ line, column })} /> : (
+          {activeFile ? editMode === "form" ? <ResumeForm value={resumeData} onChange={updateResume} /> : <Editor value={source} filePath={activeFile} onChange={setSource} onSave={() => void compile(true)} onCompile={() => void compile(true)} onCursor={(line, column) => setCursor({ line, column })} /> : (
             <div className="flex flex-1 flex-col items-center justify-center p-7 text-center">
               <div className="grid size-13.5 place-items-center rounded-lg border border-border bg-(--surface-raised) text-(--editor-accent) shadow-(--shadow-elevated)"><AppIcon icon={BracesIcon} size={26} /></div>
               <h1 className="mt-4.5 mb-2 text-[1.08rem] font-semibold text-foreground">{workspace?.isEmpty ? "Start your resume" : "Choose a LaTeX file"}</h1>
