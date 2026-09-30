@@ -3,7 +3,9 @@
 A private, local-only macOS app for editing one-page resumes. It combines a file
 explorer, a CodeMirror LaTeX editor, and a live US Letter PDF preview.
 
-## Getting started
+![TexCV application screenshot](public/TexScreenshot.png)
+
+## Build it yourself
 
 TexCV requires macOS, Node.js 20 or newer, pnpm, and
 [Tectonic](https://tectonic-typesetting.github.io/) for PDF compilation.
@@ -27,7 +29,7 @@ TexCV requires macOS, Node.js 20 or newer, pnpm, and
    pnpm install
    ```
 
-4. Build and launch the desktop app:
+4. Build and launch the app locally:
 
    ```sh
    pnpm run desktop
@@ -36,14 +38,9 @@ TexCV requires macOS, Node.js 20 or newer, pnpm, and
 On first launch, TexCV creates and opens `~/Documents/TexCV`. It reopens the last
 workspace after that; if the folder is no longer available, it falls back to the
 managed Documents folder. Use File → Open Folder to choose a different workspace.
-Create an unpacked macOS application with `pnpm run pack:mac`, or create `.dmg` and
-`.zip` release artifacts with `pnpm run dist:mac`.
 
-For public distribution, install a Developer ID Application certificate in the
-macOS keychain and provide Apple notarization credentials through either
-`APPLE_API_KEY`, `APPLE_API_KEY_ID`, and `APPLE_API_ISSUER`, or a stored
-`APPLE_KEYCHAIN_PROFILE`. electron-builder signs the app automatically when it
-finds the certificate and notarizes it when those credentials are present.
+This project is currently intended to be cloned from GitHub and built locally.
+Prebuilt downloads and public distribution are not supported at this time.
 
 ## Keyboard shortcuts
 
